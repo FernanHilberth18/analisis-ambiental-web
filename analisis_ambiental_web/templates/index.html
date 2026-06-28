@@ -1936,7 +1936,14 @@
                 mapa.removeLayer(marcadorFauna);
             }
 
-            marcadorFauna = L.marker(latlng).addTo(mapa);
+            marcadorFauna = L.circleMarker(latlng, {
+                pane: "faunaPane",
+                radius: 10,
+                color: "#ffffff",
+                weight: 3,
+                fillColor: "#0f766e",
+                fillOpacity: 1
+            }).addTo(mapa);
 
             let url = `/api/fauna-educativa?lat=${latlng.lat}&lon=${latlng.lng}`;
 
