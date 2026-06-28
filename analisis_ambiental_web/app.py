@@ -61,7 +61,7 @@ FAUNA_EDUCATIVA = [
         "descripcion": "Ave migratoria pequeña que usa playas lodosas y bancos de arena para descansar y alimentarse durante sus viajes.",
         "aprendizaje": "Su presencia indica que los fangales funcionan como una estación de alimentación para aves migratorias.",
         "amenaza": "Pérdida de habitat por rellenos, disturbio humano y cambios en la línea costera.",
-        "imagen_url": "/static/img/fauna/chorlito_semipalmeado.jfif",
+        "imagen_url": "/static/img/fauna/chorlito_semipalmeado.jpg",
     },
     {
         "nombre_comun": "Correlimos occidental",
@@ -71,7 +71,7 @@ FAUNA_EDUCATIVA = [
         "descripcion": "Ave playera que se alimenta de pequeños invertebrados en el lodo expuesto durante la marea baja.",
         "aprendizaje": "Depende de máreas y sedimentos sanos; si el fangal se altera, pierde alimento.",
         "amenaza": "Urbanización cercana, contaminación y pérdida de áreas intermareales.",
-        "imagen_url": "/static/img/fauna/correlimos_occidental.jfif",
+        "imagen_url": "/static/img/fauna/correlimos_occidental.jpg",
     },
     {
         "nombre_comun": "Cangrejo violinista",
@@ -81,7 +81,7 @@ FAUNA_EDUCATIVA = [
         "descripcion": "Crustaceo pequeno que vive en madrigueras del lodo y ayuda a remover y oxigenar el sedimento.",
         "aprendizaje": "Es una pieza clave del alimento de muchas aves playeras.",
         "amenaza": "Compactación del suelo, contaminación y pérdida del manglar.",
-        "imagen_url": "/static/img/fauna/cangrejo_violinista.jfif",
+        "imagen_url": "/static/img/fauna/cangrejo_violinista.jpg",
     },
     {
         "nombre_comun": "Garza blanca",
@@ -91,7 +91,7 @@ FAUNA_EDUCATIVA = [
         "descripcion": "Garza grande que caza peces, anfibios e invertebrados en aguas someras y bordes de manglar.",
         "aprendizaje": "Usa zonas de poca profundidad porque alli encuentra presas faciles de capturar.",
         "amenaza": "Contaminacion del agua, reducción de vegetación ribereña y disturbio.",
-        "imagen_url": "/static/img/fauna/garza_blanca.jfif",
+        "imagen_url": "/static/img/fauna/garza_blanca.jpg",
     },
     {
         "nombre_comun": "Ibis blanco",
@@ -101,7 +101,7 @@ FAUNA_EDUCATIVA = [
         "descripcion": "Ave de pico curvo que busca crustaceos e insectos acuaticos en lodos y aguas poco profundas.",
         "aprendizaje": "Su pico curvo esta adaptado para explorar el lodo.",
         "amenaza": "Pérdida de sitios de alimentación y contaminación.",
-        "imagen_url": "/static/img/fauna/ibis_blanco.jfif",
+        "imagen_url": "/static/img/fauna/ibis_blanco.jpg",
     },
     {
         "nombre_comun": "Espatula rosada",
@@ -111,7 +111,7 @@ FAUNA_EDUCATIVA = [
         "descripcion": "Ave rosada de pico ancho que filtra alimento moviendo el pico lateralmente en aguas someras.",
         "aprendizaje": "Su forma de alimentación depende de aguas tranquilas y poco profundas.",
         "amenaza": "Alteración hidrológica, contaminación y pérdida de manglar.",
-        "imagen_url": "/static/img/fauna/espatula_rosada.jfif",
+        "imagen_url": "/static/img/fauna/espatula_rosada.jpg",
     },
     {
         "nombre_comun": "Cocodrilo americano",
@@ -131,7 +131,7 @@ FAUNA_EDUCATIVA = [
         "descripcion": "Ave marina que se alimenta de peces y suele observarse en costas, estuarios y aguas cercanas.",
         "aprendizaje": "Conecta el humedal con el ambiente marino cercano.",
         "amenaza": "Basura marina, contaminación y disminucion de peces.",
-        "imagen_url": "/static/img/fauna/pelicano_pardo.jfif",
+        "imagen_url": "/static/img/fauna/pelicano_pardo.jpg",
     },
     {
         "nombre_comun": "Fragata magnifica",
@@ -141,7 +141,7 @@ FAUNA_EDUCATIVA = [
         "descripcion": "Ave planeadora que aprovecha corrientes de aire sobre la costa y el mar para desplazarse con poco esfuerzo.",
         "aprendizaje": "Observa el humedal desde el aire y depende de ecosistemas costeros productivos.",
         "amenaza": "Disturbio en sitios de descanso y contaminación costera.",
-        "imagen_url": "/static/img/fauna/fragata_magnifica.jfif",
+        "imagen_url": "/static/img/fauna/fragata_magnifica.jpg",
     },
     {
         "nombre_comun": "Mapache cangrejero",
@@ -161,7 +161,7 @@ FAUNA_EDUCATIVA = [
         "descripcion": "Reptil arborícola que puede usar vegetación cercana a cuerpos de agua y bordes del humedal.",
         "aprendizaje": "La vegetación de borde ofrece refugio y alimento a especies terrestres.",
         "amenaza": "Pérdida de vegetación y captura.",
-        "imagen_url": "/static/img/fauna/iguana_verde.jfif",
+        "imagen_url": "/static/img/fauna/iguana_verde.jpg",
     },
     {
         "nombre_comun": "Martin pescador",
@@ -171,7 +171,7 @@ FAUNA_EDUCATIVA = [
         "descripcion": "Ave que se posa cerca del agua y se lanza para capturar peces pequeños.",
         "aprendizaje": "Necesita agua con peces y sitios de percha para cazar.",
         "amenaza": "Contaminacion del agua y pérdida de bordes naturales.",
-        "imagen_url": "/static/img/fauna/martin_pescador.jfif",
+        "imagen_url": "/static/img/fauna/martin_pescador.jpg",
     },
     {
         "nombre_comun": "Garza azul",
@@ -181,7 +181,7 @@ FAUNA_EDUCATIVA = [
         "descripcion": "Garza de humedales costeros que busca alimento en aguas someras y bordes lodosos.",
         "aprendizaje": "Comparte habitat con otras garzas, pero puede usar microzonas distintas para alimentarse.",
         "amenaza": "Alteración de zonas de alimentación y contaminación.",
-        "imagen_url": "/static/img/fauna/garza_azul.jfif",
+        "imagen_url": "/static/img/fauna/garza_azul.jpg",
     },
 ]
 
