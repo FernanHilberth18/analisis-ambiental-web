@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+*.log
+*.dump
+*.backup
+*.ipynb
+.env
+.venv/
+venv/
+env/
+.vscode/
+Contraseña.txt
+ZonasProtegidasPanama.json
+analisis_ambiental_web/data/
+analisis_ambiental_web/sql_generado/

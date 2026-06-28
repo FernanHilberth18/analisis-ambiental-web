@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: analisis-ambiental-web
+    env: python
+    rootDir: analisis_ambiental_web
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.0
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: FORCE_HTTPS
+        value: "true"

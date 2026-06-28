@@ -1,0 +1,2279 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Presión Urbana sobre el Humedal Bahía de Panamá</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <link 
+        rel="stylesheet" 
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <header class="hero">
+        <div class="hero-copy">
+            <span class="etiqueta">Observatorio ambiental</span>
+            <h1>Presión Urbana sobre el Humedal Bahía de Panamá</h1>
+            <p>Explora la relación entre crecimiento urbano, zonas de presión y fauna asociada al ecosistema del humedal.</p>
+        </div>
+
+        <div class="hero-status">
+            <div class="badge">Tópicos Especiales II + Ingeniería Ambiental</div>
+            <span>Análisis ambiental interactivo con PostGIS, Flask y Leaflet</span>
+        </div>
+    </header>
+
+    <nav class="modo-nav" aria-label="Vistas principales">
+        <button class="modo-boton activo" type="button" onclick="cambiarVista('mapa', this)">Observatorio</button>
+        <button class="modo-boton" type="button" onclick="cambiarVista('analisis', this)">Análisis urbano</button>
+        <button class="modo-boton" type="button" onclick="cambiarVista('metodologia', this)">Metodología y fuentes</button>
+    </nav>
+
+    <main class="layout vista vista-mapa vista-activa">
+        <section class="panel">
+            <h2>Resumen del análisis</h2>
+
+            <p class="descripcion">
+                Esta aplicación estima la presión urbana espacial alrededor del Humedal Bahía de Panamá
+                a partir de edificaciones detectadas.
+                Las edificaciones se clasifican según su distancia al humedal en anillos de 250, 500,
+                750 y 1000 metros.
+            </p>
+
+            <div class="stats">
+                <div class="stat-card">
+                    <span class="stat-label">Polígonos del humedal</span>
+                    <strong id="stat-humedal">{{ datos.get("total_humedal", 0) }}</strong>
+                </div>
+
+                <div class="stat-card">
+                    <span class="stat-label">Edificaciones analizadas</span>
+                    <strong id="stat-edificios">Cargando...</strong>
+                </div>
+
+                <div class="stat-card">
+                    <span class="stat-label">Área del humedal</span>
+                    <strong id="stat-hectareas">Cargando...</strong>
+                </div>
+
+                <div class="stat-card alerta">
+                    <span class="stat-label">Rango con más edificaciones</span>
+                    <strong id="stat-zona-critica">Cargando...</strong>
+                </div>
+            </div>
+
+            <div class="indicador-presion">
+                <span>Índice espacial de presión urbana</span>
+                <strong id="nivel-presion">Calculando...</strong>
+
+                <div class="barra">
+                    <div id="barra-presion" class="barra-fill"></div>
+                </div>
+
+                <p id="texto-presion">
+                    Evaluando cercanía y concentración de edificaciones próximas al humedal.
+                </p>
+            </div>
+
+            <div class="nota-control">
+                Las capas de fauna y zonas ecológicas son una guía educativa aproximada; las capas de humedal, edificaciones y anillos sostienen el análisis espacial principal.
+            </div>
+
+            <div class="leyenda">
+                <h3>Leyenda</h3>
+
+                <div class="leyenda-item">
+                    <span class="cuadro humedal"></span>
+                    <p>Humedal Bahía de Panamá</p>
+                </div>
+
+                <div class="leyenda-item">
+                    <span class="cuadro zona-muy-alta"></span>
+                    <p>0 - 250 m: presión muy alta</p>
+                </div>
+
+                <div class="leyenda-item">
+                    <span class="cuadro zona-alta"></span>
+                    <p>250 - 500 m: presión alta</p>
+                </div>
+
+                <div class="leyenda-item">
+                    <span class="cuadro zona-media"></span>
+                    <p>500 - 750 m: presión media</p>
+                </div>
+
+                <div class="leyenda-item">
+                    <span class="cuadro zona-baja"></span>
+                    <p>750 - 1000 m: presión baja</p>
+                </div>
+
+                <div class="leyenda-item">
+                    <span class="cuadro edificio"></span>
+                    <p>Edificaciones cercanas</p>
+                </div>
+            </div>
+
+            <div class="interpretacion">
+                <h3>Interpretación</h3>
+
+                <p>
+                    Las edificaciones ubicadas a menor distancia del humedal representan una mayor
+                    presión urbana potencial, ya que se encuentran más cerca de un ecosistema sensible.
+                </p>
+
+                <p>
+                    El mapa de calor permite identificar zonas con mayor concentración de edificaciones,
+                    mientras que los anillos de distancia ayudan a clasificar el nivel de presión espacial.
+                </p>
+            </div>
+        </section>
+
+        <section class="map-section">
+            <div class="map-header">
+                <div>
+                    <span class="seccion-label">Explorador territorial</span>
+                    <h2>Mapa interactivo</h2>
+                    <p>Activa modos de análisis para ubicar presión urbana, zonas críticas y fauna educativa.</p>
+                </div>
+
+                <div class="map-actions">
+                    <button onclick="cambiarMapaBase()">Cambiar mapa base</button>
+                </div>
+            </div>
+
+            <div class="map-toolbar">
+                <div class="toolbar-group">
+                    <span>Análisis urbano</span>
+                    <button onclick="mostrarZonaCritica()">Zona crítica</button>
+                    <button onclick="mostrarZonasCriticasPorRango()">Concentraciones por rango</button>
+                    <button onclick="modoConcentracion()">Concentración urbana</button>
+                    <button onclick="generarDiagnosticoInteractivo()">Diagnóstico</button>
+                </div>
+
+                <div class="toolbar-group">
+                    <span>Aprendizaje</span>
+                    <button onclick="activarModoFaunaEducativa()">Fauna educativa</button>
+                </div>
+
+                <div class="toolbar-group">
+                    <span>Mapa</span>
+                    <button onclick="mostrarTodasLasCapas()">Todas las capas</button>
+                    <button onclick="centrarMapa()">Centrar</button>
+                    <button onclick="limpiarCapasTematicas()">Quitar marcadores</button>
+                    <button onclick="limpiarCapas()">Limpiar</button>
+                </div>
+            </div>
+
+            <div class="panel-capas-propio">
+                <div>
+                    <span>Capas del observatorio</span>
+                    <p>Activa o desactiva las lecturas principales del mapa.</p>
+                </div>
+
+                <label><input id="toggle-humedal" type="checkbox" onchange="toggleCapaPersonalizada('humedal', this.checked)"> Humedal</label>
+                <label><input id="toggle-anillos" type="checkbox" onchange="toggleCapaPersonalizada('anillos', this.checked)"> Anillos</label>
+                <label><input id="toggle-edificios" type="checkbox" onchange="toggleCapaPersonalizada('edificios', this.checked)"> Edificios</label>
+                <label><input id="toggle-heatmap" type="checkbox" onchange="toggleCapaPersonalizada('heatmap', this.checked)"> Calor urbano</label>
+                <label><input id="toggle-criticas" type="checkbox" onchange="toggleCapaPersonalizada('criticas', this.checked)"> Concentraciones</label>
+                <label><input id="toggle-fauna" type="checkbox" onchange="toggleCapaPersonalizada('fauna', this.checked)"> Fauna</label>
+                <label><input id="toggle-ecologicas" type="checkbox" onchange="toggleCapaPersonalizada('ecologicas', this.checked)"> Zonas ecológicas</label>
+            </div>
+
+            <div id="mapa"></div>
+
+            <aside id="panel-punto" class="panel-punto">
+                <div class="panel-punto-header">
+                    <div>
+                        <span>Consulta del mapa</span>
+                        <h3 id="punto-zona">Punto seleccionado</h3>
+                    </div>
+
+                    <button type="button" onclick="cerrarPanelPunto()">Cerrar</button>
+                </div>
+
+                <div id="punto-detalle" class="punto-detalle"></div>
+            </aside>
+
+            <aside id="panel-fauna" class="panel-fauna">
+                <div class="panel-fauna-header">
+                    <div>
+                        <span>Aprendizaje ambiental</span>
+                        <h3 id="fauna-zona">Fauna del humedal</h3>
+                    </div>
+
+                    <button type="button" onclick="cerrarModoFaunaEducativa()">Cerrar</button>
+                </div>
+
+                <div class="fauna-contexto">
+                    <p id="fauna-presion">Selecciona una zona del humedal para explorar especies.</p>
+                </div>
+
+                <div id="fauna-aprendizaje" class="fauna-aprendizaje"></div>
+
+                <div id="lista-fauna" class="lista-fauna"></div>
+
+                <div class="retos-fauna">
+                    <h4>Retos de exploración</h4>
+                    <div id="retos-lista"></div>
+                    <p id="reto-respuesta"></p>
+                </div>
+            </aside>
+        </section>
+    </main>
+
+    <section class="bloques-info vista vista-analisis">
+        <div class="info-card tabla-card">
+            <h2>Edificaciones por distancia al humedal</h2>
+
+            <div class="tabla-contenedor">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Rango</th>
+                            <th>Edificios</th>
+                            <th>Porcentaje</th>
+                            <th>Distancia promedio</th>
+                            <th>Nivel</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="tabla-presion">
+                        <tr>
+                            <td colspan="5">Cargando datos...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="info-card">
+            <h2>Hallazgos principales</h2>
+
+            <ul id="hallazgos">
+                <li>Cargando hallazgos...</li>
+            </ul>
+        </div>
+
+    </section>
+
+    <section class="analisis-extra vista vista-analisis">
+        <div class="grafica-card">
+            <h2>Gráfica de presión urbana por distancia</h2>
+            <p>
+                La gráfica muestra la cantidad de edificaciones detectadas en cada rango de distancia
+                respecto al humedal.
+            </p>
+
+            <div class="grafica-contenedor">
+                <canvas id="graficaPresion"></canvas>
+            </div>
+
+            <div class="analisis-graficas-secundarias">
+                <div class="grafica-mini">
+                    <h3>Proporción por rango</h3>
+                    <div class="grafica-dona-contenedor">
+                        <canvas id="graficaDistribucion"></canvas>
+                    </div>
+                </div>
+
+                <div id="diagnostico-urbano" class="diagnostico-urbano">
+                    <h3>Diagnóstico urbano</h3>
+                    <p>Cargando lectura automática...</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="porcentajes-card">
+            <h2>Distribución porcentual</h2>
+            <div id="porcentajes-rangos" class="porcentajes-lista">
+                Cargando porcentajes...
+            </div>
+
+            <div id="analisis-rango" class="analisis-rango">
+                <h3>Rango seleccionado</h3>
+                <p>Haz clic en una fila, una barra de la gráfica o un porcentaje para resaltarlo en el mapa.</p>
+            </div>
+
+            <div class="comparador-rangos">
+                <h3>Comparar rangos</h3>
+                <div class="comparador-controles">
+                    <select id="comparador-a" onchange="actualizarComparadorSeleccionado()"></select>
+                    <select id="comparador-b" onchange="actualizarComparadorSeleccionado()"></select>
+                </div>
+                <p id="comparador-resultado">Selecciona dos rangos para comparar su presión urbana.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="conclusion vista vista-analisis">
+        <h2>Conclusión automática del análisis</h2>
+
+        <p id="conclusion-texto">
+            Cargando conclusión...
+        </p>
+    </section>
+
+    <section class="metodologia-detalle vista vista-metodologia">
+        <h2>Metodología</h2>
+
+        <p>
+            Se cargó el humedal en PostGIS y se analizaron las edificaciones cercanas usando
+            distancias geográficas. Luego se generaron anillos de influencia cada 250 metros
+            hasta alcanzar 1 km alrededor del humedal.
+        </p>
+
+        <div class="flujo">
+            <span>Google Earth Engine</span>
+            <span>Microsoft Buildings</span>
+            <span>PostGIS</span>
+            <span>Flask</span>
+            <span>Leaflet</span>
+            <span>Heatmap</span>
+        </div>
+
+        <div class="validacion-datos">
+            <article>
+                <span>Calculado en la app</span>
+                <p>Distancias al humedal, anillos de presión, conteo de edificaciones, porcentajes, mapa de calor y puntos de concentración.</p>
+            </article>
+
+            <article>
+                <span>Guía educativa</span>
+                <p>Zonas ecológicas, fauna asociada y puntos de fauna son interpretaciones para aprendizaje, no límites oficiales ni avistamientos verificados.</p>
+            </article>
+
+            <article>
+                <span>Validación recomendada</span>
+                <p>Contrastar hábitats y especies con Ramsar RSIS, GBIF, eBird, Global Mangrove Watch o capas oficiales de MiAmbiente.</p>
+            </article>
+        </div>
+    </section>
+
+    <section class="limitaciones vista vista-metodologia">
+        <h2>Limitaciones del análisis</h2>
+
+        <p>
+            Este análisis mide la presión urbana a partir de la cercanía espacial de edificaciones
+            respecto al humedal. La presencia de edificaciones cercanas no implica por sí sola un impacto
+            ambiental directo, pero sí permite identificar zonas que requieren mayor monitoreo.
+        </p>
+
+        <p>
+            Las huellas de edificios provienen de una capa generada automáticamente, por lo que pueden
+            existir errores de omisión o detección. Además, no se evalúan variables como contaminación,
+            rellenos, cambios hidrológicos, pérdida de biodiversidad o cumplimiento normativo.
+        </p>
+    </section>
+
+    <section class="fuentes-alcance vista vista-metodologia">
+        <h2>Fuentes y alcance de los datos</h2>
+
+        <div class="fuentes-grid">
+            <article>
+                <h3>Datos usados directamente</h3>
+                <p>El análisis urbano usa la capa local de humedal, edificaciones cercanas y consultas espaciales en PostGIS.</p>
+            </article>
+
+            <article>
+                <h3>Referencias recomendadas</h3>
+                <ul>
+                    <li><a href="https://rsis.ramsar.org/" target="_blank" rel="noopener">Ramsar Sites Information Service</a></li>
+                    <li><a href="https://www.gbif.org/" target="_blank" rel="noopener">GBIF</a></li>
+                    <li><a href="https://ebird.org/" target="_blank" rel="noopener">eBird</a></li>
+                    <li><a href="https://www.globalmangrovewatch.org/" target="_blank" rel="noopener">Global Mangrove Watch</a></li>
+                </ul>
+            </article>
+
+            <article>
+                <h3>Alcance educativo</h3>
+                <p>Las zonas ecológicas y marcadores de fauna son representaciones educativas aproximadas, no registros oficiales de avistamiento. Para uso técnico deben reemplazarse por capas oficiales de hábitat o registros verificados de biodiversidad.</p>
+            </article>
+        </div>
+    </section>
+
+    <footer>
+        <p>
+            Proyecto académico de Tópicos Especiales II e Ingeniería Ambiental desarrollado con Python, Flask, PostgreSQL/PostGIS, Google Earth Engine y Leaflet.
+        </p>
+    </footer>
+
+    <script>
+        const mapa = L.map("mapa").setView([8.95, -79.45], 11);
+
+        const mapaClaro = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            maxZoom: 19,
+            attribution: "© OpenStreetMap"
+        });
+
+        const mapaSatelital = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+            maxZoom: 19,
+            attribution: "Tiles © Esri"
+        });
+
+        let mapaActual = "claro";
+        mapaClaro.addTo(mapa);
+
+        let capaHumedal = null;
+        let capaEdificios = null;
+        let capaAnillos = null;
+        let capaHeatmap = null;
+        let capaZonasCriticas = null;
+        let capaFaunaEducativa = null;
+        let capaZonasEcologicas = null;
+        let marcadorFauna = null;
+        let modoFaunaEducativaActivo = false;
+
+        let controlCapas = null;
+        let capasBase = {};
+        let capasOverlay = {};
+        let actualizandoControlCapas = false;
+
+        let datosPresionGlobal = [];
+        let datosResumenGlobal = {};
+        let graficaPresion = null;
+        let graficaDistribucion = null;
+        let rangoSeleccionadoOrden = null;
+
+        function cambiarVista(nombre, boton){
+            document.querySelectorAll(".vista").forEach(function(vista){
+                vista.classList.remove("vista-activa");
+            });
+
+            document.querySelectorAll(".vista-" + nombre).forEach(function(vista){
+                vista.classList.add("vista-activa");
+            });
+
+            document.querySelectorAll(".modo-boton").forEach(function(item){
+                item.classList.remove("activo");
+            });
+
+            if (boton) {
+                boton.classList.add("activo");
+            }
+
+            if (nombre === "mapa") {
+                setTimeout(function(){
+                    mapa.invalidateSize();
+                }, 120);
+            }
+
+            if (nombre === "analisis") {
+                setTimeout(function(){
+                    if (graficaPresion !== null) {
+                        graficaPresion.resize();
+                    }
+
+                    if (graficaDistribucion !== null) {
+                        graficaDistribucion.resize();
+                    }
+                }, 120);
+            }
+
+            window.scrollTo({
+                top: document.querySelector(".modo-nav").offsetTop,
+                behavior: "smooth"
+            });
+        }
+
+        const aprendizajePorZona = {
+            "Fangales intermareales": {
+                habitat: "Lodos y bancos de arena que quedan expuestos durante la marea baja.",
+                funcion: "Funcionan como comedor natural para aves playeras migratorias y pequeños invertebrados.",
+                amenaza: "Rellenos, tránsito humano, basura y cambios en la línea costera reducen el alimento disponible.",
+                reto: "Busca aves playeras y cangrejos. Son pistas de que el sedimento todavía produce alimento."
+            },
+            "Manglar": {
+                habitat: "Bosque costero adaptado al agua salobre, raíces, lodo y cambios de marea.",
+                funcion: "Ofrece refugio, crianza, alimento y protección contra erosión e inundaciones.",
+                amenaza: "La pérdida de vegetación, rellenos y contaminación rompen el refugio de muchas especies.",
+                reto: "Compara el manglar con zonas urbanas cercanas y piensa qué especies perderían refugio primero."
+            },
+            "Estuario": {
+                habitat: "Zona donde se mezclan agua dulce, agua salada, sedimentos y nutrientes.",
+                funcion: "Sostiene peces, aves acuáticas y depredadores que dependen de aguas productivas.",
+                amenaza: "Contaminación, alteración del flujo de agua y reducción de peces afectan toda la red alimentaria.",
+                reto: "Identifica especies que dependen de peces o aguas someras y relaciónalas con la calidad del agua."
+            },
+            "Canales": {
+                habitat: "Cuerpos de agua y bordes usados como rutas, zonas de caza y refugio.",
+                funcion: "Conectan áreas del humedal y permiten movimiento de aves, reptiles y peces.",
+                amenaza: "Basura, descarga de aguas y pérdida de vegetación de borde reducen sitios de alimentación.",
+                reto: "Observa qué especies necesitan perchas, agua y bordes naturales para alimentarse."
+            },
+            "Borde costero": {
+                habitat: "Franja entre el humedal y el ambiente marino abierto.",
+                funcion: "Permite descanso, vuelo, alimentación y movimiento de aves costeras y marinas.",
+                amenaza: "Urbanización, ruido, basura marina y disturbio humano afectan descanso y alimentación.",
+                reto: "Busca especies que conectan el humedal con el mar, como aves marinas y playeras."
+            },
+            "Borde urbano": {
+                habitat: "Zona de transición entre vegetación natural, edificaciones y caminos.",
+                funcion: "Muestra dónde la fauna entra en contacto directo con la presión humana.",
+                amenaza: "Atropellos, fragmentación, basura y pérdida de vegetación aumentan el riesgo para especies terrestres.",
+                reto: "Relaciona los edificios cercanos con posibles conflictos para fauna de borde."
+            },
+            "Recorrido general": {
+                habitat: "Vista general de hábitats del humedal: manglar, fangales, canales, estuario y borde costero.",
+                funcion: "Ayuda a entender que cada especie usa una parte distinta del ecosistema.",
+                amenaza: "La presión urbana no afecta a todas las especies igual; depende del hábitat que usan.",
+                reto: "Haz clic en el mapa y compara cómo cambian las especies entre zonas."
+            },
+            "Fuera de zona ecológica educativa": {
+                habitat: "El punto seleccionado está fuera de las zonas ecológicas educativas interpretadas en este prototipo.",
+                funcion: "No se asigna fauna porque no corresponde a una zona educativa delimitada.",
+                amenaza: "Para interpretar este punto se necesitaría una capa oficial de hábitats o registros verificados.",
+                reto: "Selecciona una zona coloreada del mapa para consultar fauna asociada."
+            }
+        };
+
+        const zonasEcologicasEducativas = [
+            {
+                nombre: "Fangales intermareales",
+                lat: 9.0065,
+                lon: -79.4026,
+                radio: 10500,
+                color: "#f59e0b"
+            },
+            {
+                nombre: "Manglar",
+                lat: 9.0006,
+                lon: -79.1911,
+                radio: 11800,
+                color: "#16a34a"
+            },
+            {
+                nombre: "Estuario",
+                lat: 8.9550,
+                lon: -79.2750,
+                radio: 10500,
+                color: "#0ea5e9"
+            },
+            {
+                nombre: "Canales",
+                lat: 9.0820,
+                lon: -79.2450,
+                radio: 8500,
+                color: "#6366f1"
+            },
+            {
+                nombre: "Borde costero",
+                lat: 8.9000,
+                lon: -79.0900,
+                radio: 11200,
+                color: "#14b8a6"
+            },
+            {
+                nombre: "Manglar",
+                etiqueta: "Manglar oriental",
+                lat: 8.9050,
+                lon: -78.9800,
+                radio: 9600,
+                color: "#16a34a"
+            },
+            {
+                nombre: "Borde costero",
+                etiqueta: "Borde costero oriental",
+                lat: 8.8150,
+                lon: -78.9050,
+                radio: 10500,
+                color: "#14b8a6"
+            },
+            {
+                nombre: "Estuario",
+                etiqueta: "Estuario oriental",
+                lat: 8.9550,
+                lon: -79.0550,
+                radio: 8200,
+                color: "#0ea5e9"
+            },
+            {
+                nombre: "Borde urbano",
+                lat: 9.0200,
+                lon: -79.3300,
+                radio: 7600,
+                color: "#ef4444"
+            }
+        ];
+
+        function actualizarControlCapas(){
+            actualizandoControlCapas = true;
+
+            if (controlCapas !== null) {
+                mapa.removeControl(controlCapas);
+            }
+
+            capasBase = {
+                "Mapa claro": mapaClaro,
+                "Mapa satelital": mapaSatelital
+            };
+
+            capasOverlay = {};
+
+            if (capaHumedal !== null) {
+                capasOverlay["Humedal Bahía de Panamá"] = capaHumedal;
+            }
+
+            if (capaAnillos !== null) {
+                capasOverlay["Anillos de presión urbana"] = capaAnillos;
+            }
+
+            if (capaEdificios !== null) {
+                capasOverlay["Edificaciones cercanas"] = capaEdificios;
+            }
+
+            if (capaHeatmap !== null) {
+                capasOverlay["Mapa de calor de edificaciones"] = capaHeatmap;
+            }
+
+            if (capaZonasCriticas !== null) {
+                capasOverlay["Concentraciones por rango"] = capaZonasCriticas;
+            }
+
+            if (capaFaunaEducativa !== null) {
+                capasOverlay["Marcadores de fauna educativa"] = capaFaunaEducativa;
+            }
+
+            if (capaZonasEcologicas !== null) {
+                capasOverlay["Zonas ecológicas educativas"] = capaZonasEcologicas;
+            }
+
+            controlCapas = L.control.layers(
+                capasBase,
+                capasOverlay,
+                {
+                    collapsed: false,
+                    position: "topright"
+                }
+            ).addTo(mapa);
+
+            actualizandoControlCapas = false;
+            sincronizarPanelCapas();
+        }
+
+        function capaVisible(capa){
+            return capa !== null && mapa.hasLayer(capa);
+        }
+
+        function sincronizarPanelCapas(){
+            const pares = [
+                ["toggle-humedal", capaHumedal],
+                ["toggle-anillos", capaAnillos],
+                ["toggle-edificios", capaEdificios],
+                ["toggle-heatmap", capaHeatmap],
+                ["toggle-criticas", capaZonasCriticas],
+                ["toggle-fauna", capaFaunaEducativa],
+                ["toggle-ecologicas", capaZonasEcologicas]
+            ];
+
+            pares.forEach(function(par){
+                const input = document.getElementById(par[0]);
+
+                if (input) {
+                    input.checked = capaVisible(par[1]);
+                }
+            });
+        }
+
+        async function toggleCapaPersonalizada(nombre, visible){
+            if (nombre === "humedal") {
+                if (visible) {
+                    await activarHumedal();
+                } else if (capaHumedal !== null) {
+                    mapa.removeLayer(capaHumedal);
+                }
+            }
+
+            if (nombre === "anillos") {
+                if (visible) {
+                    await activarAnillos();
+                } else if (capaAnillos !== null) {
+                    mapa.removeLayer(capaAnillos);
+                }
+            }
+
+            if (nombre === "edificios") {
+                if (visible) {
+                    await activarEdificios();
+                } else if (capaEdificios !== null) {
+                    mapa.removeLayer(capaEdificios);
+                }
+            }
+
+            if (nombre === "heatmap") {
+                if (visible) {
+                    await activarHeatmap();
+                } else if (capaHeatmap !== null) {
+                    mapa.removeLayer(capaHeatmap);
+                }
+            }
+
+            if (nombre === "criticas") {
+                if (visible) {
+                    await mostrarZonasCriticasPorRango();
+                } else if (capaZonasCriticas !== null) {
+                    mapa.removeLayer(capaZonasCriticas);
+                    capaZonasCriticas = null;
+                }
+            }
+
+            if (nombre === "fauna") {
+                if (visible) {
+                    await activarModoFaunaEducativa();
+                } else {
+                    cerrarModoFaunaEducativa();
+                }
+            }
+
+            if (nombre === "ecologicas") {
+                if (visible) {
+                    activarZonasEcologicas();
+                } else if (capaZonasEcologicas !== null) {
+                    mapa.removeLayer(capaZonasEcologicas);
+                    capaZonasEcologicas = null;
+                }
+            }
+
+            actualizarControlCapas();
+        }
+
+        function ocultarPanelFauna(){
+            modoFaunaEducativaActivo = false;
+            document.getElementById("panel-fauna").classList.remove("visible");
+
+            if (marcadorFauna !== null) {
+                mapa.removeLayer(marcadorFauna);
+                marcadorFauna = null;
+            }
+        }
+
+        function cerrarPanelPunto(){
+            document.getElementById("panel-punto").classList.remove("visible");
+        }
+
+        mapa.on("overlayadd", function(evento){
+            if (evento.layer === capaFaunaEducativa && !actualizandoControlCapas) {
+                modoFaunaEducativaActivo = true;
+                document.getElementById("panel-fauna").classList.add("visible");
+            }
+
+            sincronizarPanelCapas();
+        });
+
+        mapa.on("overlayremove", function(evento){
+            if (actualizandoControlCapas) {
+                return;
+            }
+
+            if (evento.layer === capaFaunaEducativa) {
+                ocultarPanelFauna();
+            }
+
+            sincronizarPanelCapas();
+        });
+
+        async function cargarResumen(){
+            try {
+                const respuestaResumen = await fetch("/api/resumen");
+                const resumen = await respuestaResumen.json();
+
+                const respuestaPresion = await fetch("/api/presion-distancia");
+                const presion = await respuestaPresion.json();
+
+                datosResumenGlobal = resumen;
+                datosPresionGlobal = presion;
+
+                document.getElementById("stat-humedal").textContent = resumen.total_humedal ?? 0;
+                document.getElementById("stat-edificios").textContent = resumen.total_edificios ?? 0;
+                document.getElementById("stat-hectareas").textContent = `${resumen.hectareas_humedal ?? "Sin dato"} ha`;
+
+                actualizarTablaPresion(presion);
+                actualizarHallazgos(resumen, presion);
+                actualizarIndicadorPresion(presion);
+                actualizarGraficaPresion(presion);
+                actualizarGraficaDistribucion(presion);
+                actualizarPorcentajes(presion);
+                actualizarDiagnosticoUrbano(resumen, presion);
+                actualizarComparadorRangos(presion);
+                actualizarConclusionAutomatica(resumen, presion);
+            } catch (error) {
+                console.error("Error cargando resumen:", error);
+                document.getElementById("stat-edificios").textContent = "Error";
+                document.getElementById("stat-hectareas").textContent = "Error";
+                document.getElementById("stat-zona-critica").textContent = "Error";
+            }
+        }
+
+        function obtenerNivelPorOrden(orden){
+            if (orden === 1) {
+                return "Muy alta";
+            }
+
+            if (orden === 2) {
+                return "Alta";
+            }
+
+            if (orden === 3) {
+                return "Media";
+            }
+
+            if (orden === 4) {
+                return "Baja";
+            }
+
+            return "Fuera del buffer";
+        }
+
+        function totalEdificiosPresion(datos){
+            return datos.reduce(function(total, item){
+                return total + Number(item.total_edificios || 0);
+            }, 0);
+        }
+
+        function actualizarTablaPresion(datos){
+            const tabla = document.getElementById("tabla-presion");
+            const total = totalEdificiosPresion(datos);
+
+            tabla.innerHTML = "";
+
+            datos.forEach(function(item){
+                const porcentaje = total > 0 
+                    ? ((Number(item.total_edificios) / total) * 100).toFixed(1)
+                    : 0;
+
+                const fila = document.createElement("tr");
+                fila.dataset.orden = item.orden;
+
+                fila.innerHTML = `
+                    <td>${item.rango}</td>
+                    <td>${item.total_edificios}</td>
+                    <td>${porcentaje}%</td>
+                    <td>${item.distancia_promedio_m} m</td>
+                    <td>${obtenerNivelPorOrden(item.orden)}</td>
+                `;
+
+                fila.addEventListener("click", function(){
+                    seleccionarRangoAnalisis(item);
+                });
+
+                tabla.appendChild(fila);
+            });
+        }
+
+        function textoAnalisisRango(item, porcentaje){
+            if (item.orden === 1) {
+                return "Es el borde inmediato del humedal. Cualquier concentración urbana aquí merece mayor monitoreo porque está muy cerca del ecosistema sensible.";
+            }
+
+            if (item.orden === 2) {
+                return "Representa presión urbana cercana. Puede funcionar como zona de transición donde la expansión urbana empieza a acercarse al humedal.";
+            }
+
+            if (item.orden === 3) {
+                return "Muestra presión media. Aunque está más alejado, sigue siendo importante para entender tendencias de crecimiento alrededor del humedal.";
+            }
+
+            if (item.orden === 4) {
+                return "Indica presión baja dentro del primer kilómetro. Sirve como referencia para comparar con los rangos más cercanos.";
+            }
+
+            return "Este grupo queda fuera del buffer principal de 1 km y se usa como contexto general.";
+        }
+
+        async function seleccionarRangoAnalisis(item, moverMapa = true){
+            rangoSeleccionadoOrden = Number(item.orden);
+
+            const total = totalEdificiosPresion(datosPresionGlobal);
+            const porcentaje = total > 0
+                ? ((Number(item.total_edificios) / total) * 100).toFixed(1)
+                : 0;
+
+            document.getElementById("analisis-rango").innerHTML = `
+                <h3>${item.rango}</h3>
+                <div class="rango-metricas">
+                    <span><strong>${item.total_edificios}</strong> edificios</span>
+                    <span><strong>${porcentaje}%</strong> del total</span>
+                    <span><strong>${obtenerNivelPorOrden(item.orden)}</strong> presión</span>
+                </div>
+                <p>${textoAnalisisRango(item, porcentaje)}</p>
+            `;
+
+            document.querySelectorAll("#tabla-presion tr").forEach(function(fila){
+                fila.classList.toggle("fila-activa", Number(fila.dataset.orden) === rangoSeleccionadoOrden);
+            });
+
+            document.querySelectorAll(".porcentaje-item").forEach(function(bloque){
+                bloque.classList.toggle("porcentaje-activo", Number(bloque.dataset.orden) === rangoSeleccionadoOrden);
+            });
+
+            await activarAnillos();
+            restaurarEstiloAnillos();
+
+            if (capaAnillos === null) {
+                return;
+            }
+
+            let anilloSeleccionado = null;
+
+            capaAnillos.eachLayer(function(layer){
+                if (Number(layer.feature.properties.orden) === rangoSeleccionadoOrden) {
+                    anilloSeleccionado = layer;
+                    layer.setStyle({
+                        color: "#07384b",
+                        weight: 5,
+                        fillOpacity: 0.42
+                    });
+                    layer.bringToFront();
+                }
+            });
+
+            if (anilloSeleccionado && moverMapa) {
+                const botonMapa = document.querySelectorAll(".modo-boton")[0];
+                cambiarVista("mapa", botonMapa);
+
+                document.getElementById("mapa").scrollIntoView({
+                    behavior: "smooth",
+                    block: "center"
+                });
+
+                mapa.fitBounds(anilloSeleccionado.getBounds());
+                anilloSeleccionado.openPopup(obtenerPuntoPopup(anilloSeleccionado));
+            }
+        }
+
+        function actualizarHallazgos(resumen, presion){
+            const hallazgos = document.getElementById("hallazgos");
+            hallazgos.innerHTML = "";
+
+            const totalEdificios = resumen.total_edificios ?? 0;
+
+            const zonasDentro = presion.filter(function(item){
+                return item.orden <= 4;
+            });
+
+            const zonaCritica = zonasDentro.reduce(function(max, item){
+                if (!max || Number(item.total_edificios) > Number(max.total_edificios)) {
+                    return item;
+                }
+
+                return max;
+            }, null);
+
+            const zonaCercana = presion.find(function(item){
+                return item.orden === 1;
+            });
+
+            if (zonaCritica) {
+                document.getElementById("stat-zona-critica").textContent = zonaCritica.rango;
+            }
+
+            const lista = [
+                `Se analizaron ${totalEdificios} edificaciones cercanas al humedal.`,
+                `En el rango de 0 - 250 m se identificaron ${zonaCercana ? zonaCercana.total_edificios : 0} edificaciones.`,
+                `El rango con mayor cantidad de edificaciones fue ${zonaCritica ? zonaCritica.rango : "sin dato"}.`,
+                `El análisis permite priorizar zonas cercanas al humedal para monitoreo urbano ambiental.`
+            ];
+
+            lista.forEach(function(texto){
+                const li = document.createElement("li");
+                li.textContent = texto;
+                hallazgos.appendChild(li);
+            });
+        }
+
+        function actualizarIndicadorPresion(presion){
+            const nivel = document.getElementById("nivel-presion");
+            const barra = document.getElementById("barra-presion");
+            const texto = document.getElementById("texto-presion");
+
+            const zona250 = presion.find(function(item){
+                return item.orden === 1;
+            });
+
+            const edificiosCercanos = zona250 ? Number(zona250.total_edificios) : 0;
+
+            if (edificiosCercanos >= 500) {
+                nivel.textContent = "Alto";
+                barra.style.width = "85%";
+                texto.textContent = "Existe una alta cantidad de edificaciones dentro de los primeros 250 metros del humedal.";
+            } else if (edificiosCercanos >= 200) {
+                nivel.textContent = "Medio";
+                barra.style.width = "55%";
+                texto.textContent = "Existe una presión urbana moderada cerca del humedal.";
+            } else {
+                nivel.textContent = "Bajo";
+                barra.style.width = "25%";
+                texto.textContent = "La presión urbana inmediata es relativamente baja según la cantidad de edificaciones cercanas.";
+            }
+        }
+
+        function actualizarGraficaPresion(datos){
+            if (typeof Chart === "undefined") {
+                document.querySelector(".grafica-contenedor").innerHTML = "<p class='descripcion'>No se pudo cargar la gráfica.</p>";
+                return;
+            }
+
+            const ctx = document.getElementById("graficaPresion");
+
+            const etiquetas = datos.map(function(item){
+                return item.rango;
+            });
+
+            const valores = datos.map(function(item){
+                return Number(item.total_edificios);
+            });
+
+            if (graficaPresion !== null) {
+                graficaPresion.destroy();
+            }
+
+            graficaPresion = new Chart(ctx, {
+                type: "bar",
+                data: {
+                    labels: etiquetas,
+                    datasets: [
+                        {
+                            label: "Cantidad de edificaciones",
+                            data: valores,
+                            backgroundColor: [
+                                "#ef4444",
+                                "#f97316",
+                                "#eab308",
+                                "#22c55e",
+                                "#64748b"
+                            ],
+                            borderColor: [
+                                "#b91c1c",
+                                "#ea580c",
+                                "#ca8a04",
+                                "#15803d",
+                                "#334155"
+                            ],
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    onClick: function(evento, elementos){
+                        if (elementos.length === 0) {
+                            return;
+                        }
+
+                        const indice = elementos[0].index;
+                        seleccionarRangoAnalisis(datos[indice]);
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context){
+                                    return `Edificaciones: ${context.raw}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: "Número de edificaciones"
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: "Rango de distancia"
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function actualizarPorcentajes(datos){
+            const contenedor = document.getElementById("porcentajes-rangos");
+            const total = totalEdificiosPresion(datos);
+
+            contenedor.innerHTML = "";
+
+            datos.forEach(function(item){
+                const porcentaje = total > 0 
+                    ? ((Number(item.total_edificios) / total) * 100).toFixed(1)
+                    : 0;
+
+                const bloque = document.createElement("div");
+                bloque.className = "porcentaje-item";
+                bloque.dataset.orden = item.orden;
+
+                bloque.innerHTML = `
+                    <div class="porcentaje-header">
+                        <span>${item.rango}</span>
+                        <strong>${porcentaje}%</strong>
+                    </div>
+
+                    <div class="porcentaje-barra">
+                        <div class="porcentaje-fill" style="width: ${porcentaje}%"></div>
+                    </div>
+
+                    <small>${item.total_edificios} edificaciones</small>
+                `;
+
+                bloque.addEventListener("click", function(){
+                    seleccionarRangoAnalisis(item);
+                });
+
+                contenedor.appendChild(bloque);
+            });
+        }
+
+        function actualizarGraficaDistribucion(datos){
+            if (typeof Chart === "undefined") {
+                return;
+            }
+
+            const ctx = document.getElementById("graficaDistribucion");
+            const etiquetas = datos.map(function(item){
+                return item.rango;
+            });
+            const valores = datos.map(function(item){
+                return Number(item.total_edificios);
+            });
+
+            if (graficaDistribucion !== null) {
+                graficaDistribucion.destroy();
+            }
+
+            graficaDistribucion = new Chart(ctx, {
+                type: "doughnut",
+                data: {
+                    labels: etiquetas,
+                    datasets: [
+                        {
+                            data: valores,
+                            backgroundColor: [
+                                "#ef4444",
+                                "#f97316",
+                                "#eab308",
+                                "#22c55e",
+                                "#64748b"
+                            ],
+                            borderColor: "#ffffff",
+                            borderWidth: 2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: "62%",
+                    onClick: function(evento, elementos){
+                        if (elementos.length === 0) {
+                            return;
+                        }
+
+                        const indice = elementos[0].index;
+                        seleccionarRangoAnalisis(datos[indice]);
+                    },
+                    plugins: {
+                        legend: {
+                            position: "bottom",
+                            labels: {
+                                boxWidth: 10,
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context){
+                                    const total = totalEdificiosPresion(datos);
+                                    const valor = Number(context.raw);
+                                    const porcentaje = total > 0 ? ((valor / total) * 100).toFixed(1) : 0;
+                                    return `${context.label}: ${valor} edificios (${porcentaje}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function actualizarDiagnosticoUrbano(resumen, presion){
+            const panel = document.getElementById("diagnostico-urbano");
+            const total = resumen.total_edificios ?? totalEdificiosPresion(presion);
+            const zonaInmediata = presion.find(function(item){
+                return item.orden === 1;
+            });
+            const zonaMayor = presion.reduce(function(max, item){
+                if (!max || Number(item.total_edificios) > Number(max.total_edificios)) {
+                    return item;
+                }
+
+                return max;
+            }, null);
+
+            const edificiosInmediatos = zonaInmediata ? Number(zonaInmediata.total_edificios) : 0;
+            const porcentajeInmediato = total > 0 ? ((edificiosInmediatos / total) * 100).toFixed(1) : 0;
+            const prioridad = edificiosInmediatos >= 500 ? "Alta" : edificiosInmediatos >= 200 ? "Media" : "Baja";
+
+            panel.innerHTML = `
+                <h3>Diagnóstico urbano</h3>
+                <div class="diagnostico-grid">
+                    <span><strong>${prioridad}</strong> prioridad</span>
+                    <span><strong>${porcentajeInmediato}%</strong> en 0 - 250 m</span>
+                    <span><strong>${zonaMayor ? zonaMayor.rango : "Sin dato"}</strong> rango dominante</span>
+                </div>
+                <p>La lectura combina cercanía al humedal y concentración de edificaciones. El rango inmediato es el más sensible ambientalmente, aunque el rango dominante ayuda a ubicar dónde se concentra la expansión urbana detectada.</p>
+            `;
+        }
+
+        function actualizarComparadorRangos(datos){
+            const selectA = document.getElementById("comparador-a");
+            const selectB = document.getElementById("comparador-b");
+
+            selectA.innerHTML = "";
+            selectB.innerHTML = "";
+
+            datos.forEach(function(item, indice){
+                const opcionA = document.createElement("option");
+                opcionA.value = item.orden;
+                opcionA.textContent = item.rango;
+
+                const opcionB = opcionA.cloneNode(true);
+
+                selectA.appendChild(opcionA);
+                selectB.appendChild(opcionB);
+
+                if (indice === 0) {
+                    opcionA.selected = true;
+                }
+
+                if (indice === 3) {
+                    opcionB.selected = true;
+                }
+            });
+
+            actualizarComparadorSeleccionado();
+        }
+
+        function actualizarComparadorSeleccionado(){
+            const selectA = document.getElementById("comparador-a");
+            const selectB = document.getElementById("comparador-b");
+            const resultado = document.getElementById("comparador-resultado");
+
+            const rangoA = datosPresionGlobal.find(function(item){
+                return Number(item.orden) === Number(selectA.value);
+            });
+
+            const rangoB = datosPresionGlobal.find(function(item){
+                return Number(item.orden) === Number(selectB.value);
+            });
+
+            if (!rangoA || !rangoB) {
+                resultado.textContent = "Selecciona dos rangos para comparar su presión urbana.";
+                return;
+            }
+
+            const diferencia = Number(rangoA.total_edificios) - Number(rangoB.total_edificios);
+            const mayor = diferencia >= 0 ? rangoA : rangoB;
+
+            resultado.innerHTML = `
+                <strong>${mayor.rango}</strong> concentra más edificaciones en la capa analizada.
+                Diferencia: <strong>${Math.abs(diferencia)}</strong> edificios entre ambos rangos.
+            `;
+        }
+
+        function actualizarConclusionAutomatica(resumen, presion){
+            const conclusion = document.getElementById("conclusion-texto");
+
+            const zonasDentro = presion.filter(function(item){
+                return item.orden <= 4;
+            });
+
+            const zonaMayor = zonasDentro.reduce(function(max, item){
+                if (!max || Number(item.total_edificios) > Number(max.total_edificios)) {
+                    return item;
+                }
+
+                return max;
+            }, null);
+
+            const zonaInmediata = presion.find(function(item){
+                return item.orden === 1;
+            });
+
+            const total = resumen.total_edificios ?? totalEdificiosPresion(presion);
+
+            conclusion.textContent = `El análisis identificó ${total} edificaciones en el entorno del humedal. 
+            El rango ${zonaMayor ? zonaMayor.rango : "sin dato"} concentra la mayor cantidad de edificaciones, 
+            con ${zonaMayor ? zonaMayor.total_edificios : 0} registros. Además, en la zona inmediata de 0 - 250 m 
+            se detectaron ${zonaInmediata ? zonaInmediata.total_edificios : 0} edificaciones, lo que indica una presión urbana 
+            cercana significativa que debe considerarse en acciones de monitoreo y planificación ambiental.`;
+        }
+
+        async function generarDiagnosticoInteractivo(){
+            if (!datosPresionGlobal.length) {
+                return;
+            }
+
+            const botonAnalisis = document.querySelectorAll(".modo-boton")[1];
+            cambiarVista("analisis", botonAnalisis);
+
+            const zonasDentro = datosPresionGlobal.filter(function(item){
+                return item.orden <= 4;
+            });
+
+            const zonaMayor = zonasDentro.reduce(function(max, item){
+                if (!max || Number(item.total_edificios) > Number(max.total_edificios)) {
+                    return item;
+                }
+
+                return max;
+            }, null);
+
+            const zonaInmediata = datosPresionGlobal.find(function(item){
+                return Number(item.orden) === 1;
+            });
+
+            if (zonaMayor) {
+                seleccionarRangoAnalisis(zonaMayor, false);
+            }
+
+            await mostrarZonasCriticasPorRango();
+
+            const conclusion = document.getElementById("conclusion-texto");
+            conclusion.innerHTML = `
+                <strong>Diagnóstico recomendado:</strong>
+                priorizar monitoreo en el rango ${zonaInmediata ? zonaInmediata.rango : "0 - 250 m"} por cercanía directa al humedal,
+                y revisar el rango ${zonaMayor ? zonaMayor.rango : "sin dato"} porque concentra la mayor cantidad de edificaciones.
+                Activa el mapa de calor para observar patrones de concentración urbana y usa fauna educativa para relacionar presión con hábitats sensibles.
+            `;
+
+            document.querySelector(".conclusion").scrollIntoView({
+                behavior: "smooth",
+                block: "center"
+            });
+        }
+
+        function estiloAnillo(feature){
+            const orden = feature.properties.orden;
+
+            if (orden === 1) {
+                return {
+                    color: "#b91c1c",
+                    fillColor: "#ef4444",
+                    weight: 2,
+                    fillOpacity: 0.28
+                };
+            }
+
+            if (orden === 2) {
+                return {
+                    color: "#ea580c",
+                    fillColor: "#f97316",
+                    weight: 2,
+                    fillOpacity: 0.24
+                };
+            }
+
+            if (orden === 3) {
+                return {
+                    color: "#ca8a04",
+                    fillColor: "#eab308",
+                    weight: 2,
+                    fillOpacity: 0.20
+                };
+            }
+
+            return {
+                color: "#15803d",
+                fillColor: "#22c55e",
+                weight: 2,
+                fillOpacity: 0.16
+            };
+        }
+
+        async function activarHumedal(){
+            if (capaHumedal !== null) {
+                mapa.addLayer(capaHumedal);
+                actualizarControlCapas();
+                return;
+            }
+
+            const respuesta = await fetch("/api/humedal");
+            const geojson = await respuesta.json();
+
+            capaHumedal = L.geoJSON(geojson, {
+                style: function(){
+                    return {
+                        color: "#0f766e",
+                        weight: 3,
+                        fillColor: "#14b8a6",
+                        fillOpacity: 0.12
+                    };
+                },
+                onEachFeature: function(feature, layer){
+                    layer.bindPopup(`
+                        <div class="popup">
+                            <h3>Humedal Bahía de Panamá</h3>
+                            <p><strong>ID:</strong> ${feature.properties.id}</p>
+                            <p><strong>Hectáreas:</strong> ${feature.properties.hectares}</p>
+                            <p><strong>Año:</strong> ${feature.properties.estab_yr}</p>
+                        </div>
+                    `);
+                }
+            }).addTo(mapa);
+
+            capaHumedal.bringToBack();
+            mapa.fitBounds(capaHumedal.getBounds());
+            actualizarControlCapas();
+        }
+
+        async function activarAnillos(){
+            if (capaAnillos !== null) {
+                mapa.addLayer(capaAnillos);
+                actualizarControlCapas();
+                return;
+            }
+
+            const respuesta = await fetch("/api/anillos-presion");
+            const geojson = await respuesta.json();
+
+            capaAnillos = L.geoJSON(geojson, {
+                style: estiloAnillo,
+                onEachFeature: function(feature, layer){
+                    const popupHtml = `
+                        <div class="popup">
+                            <h3>Anillo de presión</h3>
+                            <p><strong>Rango:</strong> ${feature.properties.rango}</p>
+                            <p><strong>Nivel:</strong> ${feature.properties.nivel}</p>
+                        </div>
+                    `;
+
+                    feature.properties.popup_html = popupHtml;
+                    layer.bindPopup(popupHtml);
+                }
+            }).addTo(mapa);
+
+            if (modoFaunaEducativaActivo) {
+                desactivarInteraccionAnillos();
+            } else {
+                capaAnillos.bringToFront();
+            }
+
+            actualizarControlCapas();
+        }
+
+        function restaurarEstiloAnillos(){
+            if (capaAnillos === null) {
+                return;
+            }
+
+            capaAnillos.eachLayer(function(layer){
+                layer.setStyle(estiloAnillo(layer.feature));
+            });
+
+            if (modoFaunaEducativaActivo) {
+                desactivarInteraccionAnillos();
+            } else {
+                activarInteraccionAnillos();
+                capaAnillos.bringToFront();
+            }
+        }
+
+        function desactivarInteraccionAnillos(){
+            if (capaAnillos === null) {
+                return;
+            }
+
+            capaAnillos.eachLayer(function(layer){
+                layer.off("click");
+                layer.closePopup();
+
+                if (layer.getPopup()) {
+                    layer.unbindPopup();
+                }
+
+                layer.options.interactive = false;
+
+                if (layer._path) {
+                    layer._path.style.pointerEvents = "none";
+                }
+            });
+
+            capaAnillos.bringToBack();
+        }
+
+        function activarInteraccionAnillos(){
+            if (capaAnillos === null) {
+                return;
+            }
+
+            capaAnillos.eachLayer(function(layer){
+                layer.options.interactive = true;
+
+                if (layer._path) {
+                    layer._path.style.pointerEvents = "auto";
+                }
+
+                if (!layer.getPopup() && layer.feature.properties.popup_html) {
+                    layer.bindPopup(layer.feature.properties.popup_html);
+                }
+            });
+        }
+
+        function obtenerPuntoPopup(layer){
+            const latlngs = layer.getLatLngs();
+            let puntos = latlngs;
+
+            while (Array.isArray(puntos[0])) {
+                puntos = puntos[0];
+            }
+
+            if (puntos.length > 0) {
+                return puntos[Math.floor(puntos.length / 2)];
+            }
+
+            return layer.getBounds().getCenter();
+        }
+
+        function colorZonaCritica(orden){
+            if (orden === 1) {
+                return "#ef4444";
+            }
+
+            if (orden === 2) {
+                return "#f97316";
+            }
+
+            if (orden === 3) {
+                return "#eab308";
+            }
+
+            return "#22c55e";
+        }
+
+        function contenidoPopupZonaEcologica(zona){
+            const aprendizaje = obtenerAprendizajeZona(zona.nombre);
+            const titulo = zona.etiqueta || zona.nombre;
+
+            return `
+                <div class="popup">
+                    <h3>${titulo}</h3>
+                    ${zona.etiqueta ? `<p><strong>Tipo de zona:</strong> ${zona.nombre}</p>` : ""}
+                    <p><strong>Alcance:</strong> zona educativa aproximada, no límite oficial.</p>
+                    <p>${aprendizaje.habitat}</p>
+                    <p><strong>Función:</strong> ${aprendizaje.funcion}</p>
+                    <p><strong>Clic:</strong> consultar fauna de esta zona.</p>
+                </div>
+            `;
+        }
+
+        function activarZonasEcologicas(){
+            if (capaZonasEcologicas !== null) {
+                mapa.addLayer(capaZonasEcologicas);
+                actualizarControlCapas();
+                return;
+            }
+
+            capaZonasEcologicas = L.layerGroup();
+
+            zonasEcologicasEducativas.forEach(function(zona){
+                const circulo = L.circle([zona.lat, zona.lon], {
+                    radius: zona.radio,
+                    color: zona.color,
+                    weight: 3,
+                    opacity: 0.95,
+                    fillColor: zona.color,
+                    fillOpacity: 0.11,
+                    dashArray: "6 6"
+                });
+
+                const etiqueta = L.marker([zona.lat, zona.lon], {
+                    icon: L.divIcon({
+                        className: "zona-eco-label",
+                        html: `<span>${zona.etiqueta || zona.nombre}</span>`,
+                        iconSize: [180, 28],
+                        iconAnchor: [90, 14]
+                    })
+                });
+
+                circulo.bindPopup(contenidoPopupZonaEcologica(zona));
+                circulo.on("click", function(evento){
+                    consultarFaunaEducativa(evento.latlng, zona.nombre);
+                });
+
+                etiqueta.bindPopup(contenidoPopupZonaEcologica(zona));
+                etiqueta.on("click", function(){
+                    consultarFaunaEducativa(L.latLng(zona.lat, zona.lon), zona.nombre);
+                });
+
+                circulo.addTo(capaZonasEcologicas);
+                etiqueta.addTo(capaZonasEcologicas);
+
+                if (etiqueta.setZIndexOffset) {
+                    etiqueta.setZIndexOffset(1000);
+                }
+            });
+
+            capaZonasEcologicas.addTo(mapa);
+            actualizarControlCapas();
+        }
+
+        async function activarModoFaunaEducativa(){
+            modoFaunaEducativaActivo = true;
+            document.getElementById("panel-fauna").classList.add("visible");
+            desactivarInteraccionAnillos();
+
+            if (capaHumedal !== null) {
+                mapa.fitBounds(capaHumedal.getBounds());
+            }
+
+            activarZonasEcologicas();
+            cargarTodasLasEspeciesFauna();
+        }
+
+        function cerrarModoFaunaEducativa(){
+            ocultarPanelFauna();
+            activarInteraccionAnillos();
+
+            if (capaFaunaEducativa !== null) {
+                mapa.removeLayer(capaFaunaEducativa);
+                capaFaunaEducativa = null;
+                actualizarControlCapas();
+            }
+
+            if (capaZonasEcologicas !== null) {
+                mapa.removeLayer(capaZonasEcologicas);
+                capaZonasEcologicas = null;
+                actualizarControlCapas();
+            }
+        }
+
+        function contenidoPopupEspecie(especie){
+            return `
+                <div class="popup">
+                    <h3>${especie.nombre_comun}</h3>
+                    <p><strong>Nombre científico:</strong> ${especie.nombre_cientifico}</p>
+                    <p><strong>Zona:</strong> ${especie.zona_principal}</p>
+                    <p><strong>Grupo:</strong> ${especie.grupo}</p>
+                </div>
+            `;
+        }
+
+        function enfocarEspecie(especie){
+            document.getElementById("mapa").scrollIntoView({
+                behavior: "smooth",
+                block: "center"
+            });
+
+            mapa.setView([especie.lat, especie.lon], 14);
+
+            L.popup()
+                .setLatLng([especie.lat, especie.lon])
+                .setContent(contenidoPopupEspecie(especie))
+                .openOn(mapa);
+        }
+
+        function renderizarTarjetaEspecie(especie){
+            const tarjeta = document.createElement("article");
+            tarjeta.className = "animal-card";
+
+            tarjeta.innerHTML = `
+                <img src="${especie.imagen_url}" alt="${especie.nombre_comun}" loading="lazy">
+                <div>
+                    <div class="animal-card-top">
+                        <h4>${especie.nombre_comun}</h4>
+                        <span>${especie.grupo}</span>
+                    </div>
+                    <em>${especie.nombre_cientifico}</em>
+                    <p>${especie.descripcion}</p>
+                    <p><strong>Aprendizaje:</strong> ${especie.aprendizaje}</p>
+                    <small>Amenaza: ${especie.amenaza}</small>
+                </div>
+            `;
+
+            tarjeta.addEventListener("click", function(){
+                enfocarEspecie(especie);
+            });
+
+            return tarjeta;
+        }
+
+        function obtenerAprendizajeZona(zona){
+            return aprendizajePorZona[zona] || aprendizajePorZona["Recorrido general"];
+        }
+
+        function renderizarAprendizajeFauna(datos){
+            const panel = document.getElementById("fauna-aprendizaje");
+            const aprendizaje = obtenerAprendizajeZona(datos.zona);
+            const totalEspecies = datos.especies ? datos.especies.length : 0;
+
+            panel.innerHTML = `
+                <article>
+                    <span>Hábitat</span>
+                    <p>${aprendizaje.habitat}</p>
+                </article>
+                <article>
+                    <span>Función ecológica</span>
+                    <p>${aprendizaje.funcion}</p>
+                </article>
+                <article>
+                    <span>Presión y amenaza</span>
+                    <p>${aprendizaje.amenaza}</p>
+                </article>
+                <article>
+                    <span>Lectura del mapa</span>
+                    <p>${totalEspecies} especies relacionadas. Presión urbana: ${datos.nivel_presion || "variable"}.</p>
+                </article>
+            `;
+        }
+
+        function renderizarRetosFauna(datos){
+            const retos = document.getElementById("retos-lista");
+            const respuesta = document.getElementById("reto-respuesta");
+            const aprendizaje = obtenerAprendizajeZona(datos.zona);
+
+            respuesta.textContent = "";
+            respuesta.className = "";
+            retos.innerHTML = "";
+
+            if (!datos.especies || datos.especies.length === 0) {
+                const aviso = document.createElement("p");
+                aviso.className = "fauna-cargando";
+                aviso.textContent = "Selecciona una zona ecológica coloreada para activar retos con fauna asociada.";
+                retos.appendChild(aviso);
+                return;
+            }
+
+            const actividades = [
+                {
+                    texto: aprendizaje.reto,
+                    respuesta: "Buen punto de partida: usa los marcadores y tarjetas para relacionar especie, hábitat y presión urbana."
+                },
+                {
+                    texto: "Ubica una especie en el mapa y revisa si está cerca de anillos de presión alta.",
+                    respuesta: "La cercanía a edificios no confirma daño directo, pero señala zonas que necesitan monitoreo."
+                },
+                {
+                    texto: "Elige un animal y pulsa 'Amenaza' para conectar biodiversidad con impacto humano.",
+                    respuesta: "Las amenazas ayudan a interpretar el mapa más allá de ver puntos y colores."
+                }
+            ];
+
+            actividades.forEach(function(actividad){
+                const boton = document.createElement("button");
+                boton.type = "button";
+                boton.textContent = actividad.texto;
+
+                boton.addEventListener("click", function(){
+                    respuesta.textContent = actividad.respuesta;
+                    respuesta.className = "quiz-ok";
+                });
+
+                retos.appendChild(boton);
+            });
+        }
+
+        function renderizarListaFauna(especies){
+            const lista = document.getElementById("lista-fauna");
+            lista.innerHTML = "";
+
+            if (!especies || especies.length === 0) {
+                lista.innerHTML = "<p class='fauna-cargando'>No hay fauna asociada a este punto dentro de la guía educativa.</p>";
+                return;
+            }
+
+            especies.forEach(function(especie){
+                lista.appendChild(renderizarTarjetaEspecie(especie));
+            });
+        }
+
+        function dibujarMarcadoresFauna(especies){
+            if (capaFaunaEducativa !== null) {
+                mapa.removeLayer(capaFaunaEducativa);
+            }
+
+            capaFaunaEducativa = L.layerGroup();
+
+            especies.forEach(function(especie){
+                const marcador = L.circleMarker([especie.lat, especie.lon], {
+                    radius: 8,
+                    color: "#0f172a",
+                    weight: 2,
+                    fillColor: "#10b981",
+                    fillOpacity: 0.95
+                });
+
+                marcador.bindPopup(contenidoPopupEspecie(especie));
+                marcador.addTo(capaFaunaEducativa);
+            });
+
+            capaFaunaEducativa.addTo(mapa);
+            actualizarControlCapas();
+        }
+
+        async function cargarTodasLasEspeciesFauna(){
+            const lista = document.getElementById("lista-fauna");
+
+            document.getElementById("fauna-zona").textContent = "Fauna del humedal";
+            document.getElementById("fauna-presion").textContent = "Las zonas ecológicas coloreadas son una guía educativa aproximada. Haz clic en una zona del mapa para ver fauna asociada a ese sitio.";
+            lista.innerHTML = "<p class='fauna-cargando'>Cargando especies...</p>";
+
+            const respuesta = await fetch("/api/fauna-todas");
+            const datos = await respuesta.json();
+
+            renderizarListaFauna(datos.especies);
+            dibujarMarcadoresFauna(datos.especies);
+            renderizarAprendizajeFauna({
+                zona: "Recorrido general",
+                nivel_presion: "variable",
+                especies: datos.especies
+            });
+            renderizarRetosFauna({
+                zona: "Recorrido general",
+                especies: datos.especies
+            });
+        }
+
+        async function consultarFaunaEducativa(latlng, zonaForzada){
+            const panel = document.getElementById("panel-fauna");
+            const lista = document.getElementById("lista-fauna");
+
+            panel.classList.add("visible");
+            document.getElementById("fauna-zona").textContent = "Consultando zona...";
+            document.getElementById("fauna-presion").textContent = "Punto seleccionado: " + latlng.lat.toFixed(5) + ", " + latlng.lng.toFixed(5);
+            lista.innerHTML = "<p class='fauna-cargando'>Buscando especies de la zona...</p>";
+
+            if (marcadorFauna !== null) {
+                mapa.removeLayer(marcadorFauna);
+            }
+
+            marcadorFauna = L.marker(latlng).addTo(mapa);
+
+            let url = `/api/fauna-educativa?lat=${latlng.lat}&lon=${latlng.lng}`;
+
+            if (zonaForzada) {
+                url += `&zona=${encodeURIComponent(zonaForzada)}`;
+            }
+
+            const respuesta = await fetch(url);
+            const datos = await respuesta.json();
+
+            document.getElementById("fauna-zona").textContent = datos.zona;
+            document.getElementById("fauna-presion").textContent = `Tipo de dato: ${datos.tipo_dato_fauna}. Presión urbana cercana: ${datos.nivel_presion}. Distancia al humedal: ${datos.distancia_humedal_m} m.`;
+
+            lista.innerHTML = "";
+
+            renderizarListaFauna(datos.especies);
+            renderizarAprendizajeFauna(datos);
+            renderizarRetosFauna(datos);
+
+            marcadorFauna.bindPopup(`
+                <div class="popup">
+                    <h3>${datos.zona}</h3>
+                    <p><strong>Especies mostradas:</strong> ${datos.especies.length}</p>
+                    <p><strong>Presión:</strong> ${datos.nivel_presion}</p>
+                </div>
+            `).openPopup();
+        }
+
+        async function consultarPuntoAnalisis(latlng){
+            const panel = document.getElementById("panel-punto");
+            const detalle = document.getElementById("punto-detalle");
+
+            panel.classList.add("visible");
+            document.getElementById("punto-zona").textContent = "Consultando punto...";
+            detalle.innerHTML = "<p>Calculando distancia, presión y fauna asociada...</p>";
+
+            const respuesta = await fetch(`/api/fauna-educativa?lat=${latlng.lat}&lon=${latlng.lng}`);
+            const datos = await respuesta.json();
+            const aprendizaje = obtenerAprendizajeZona(datos.zona);
+            const especies = datos.especies.slice(0, 4).map(function(especie){
+                return especie.nombre_comun;
+            }).join(", ");
+
+            document.getElementById("punto-zona").textContent = datos.zona;
+
+            detalle.innerHTML = `
+                <div class="punto-metricas">
+                    <span><strong>${datos.nivel_presion}</strong> presión</span>
+                    <span><strong>${datos.distancia_humedal_m} m</strong> al humedal</span>
+                    <span><strong>${datos.especies.length}</strong> especies posibles</span>
+                </div>
+                <p><strong>Tipo de dato:</strong> ${datos.tipo_dato_fauna}.</p>
+                <p><strong>Hábitat:</strong> ${aprendizaje.habitat}</p>
+                <p><strong>Lectura ambiental:</strong> ${aprendizaje.funcion}</p>
+                <p><strong>Fauna relacionada:</strong> ${especies || "Sin fauna asociada a este punto dentro de la guía educativa"}.</p>
+                ${datos.especies.length > 0 ? `<button id="abrir-fauna-punto" type="button">Abrir fauna educativa de este punto</button>` : ""}
+            `;
+
+            const botonFaunaPunto = document.getElementById("abrir-fauna-punto");
+
+            if (botonFaunaPunto) {
+                botonFaunaPunto.addEventListener("click", function(){
+                    modoFaunaEducativaActivo = true;
+                    document.getElementById("panel-fauna").classList.add("visible");
+                    desactivarInteraccionAnillos();
+                    consultarFaunaEducativa(latlng);
+                });
+            }
+
+            L.popup()
+                .setLatLng(latlng)
+                .setContent(`
+                    <div class="popup">
+                        <h3>${datos.zona}</h3>
+                        <p><strong>Presión:</strong> ${datos.nivel_presion}</p>
+                        <p><strong>Distancia:</strong> ${datos.distancia_humedal_m} m</p>
+                    </div>
+                `)
+                .openOn(mapa);
+        }
+
+        mapa.on("click", function(evento){
+            if (modoFaunaEducativaActivo) {
+                consultarFaunaEducativa(evento.latlng);
+                return;
+            }
+
+            consultarPuntoAnalisis(evento.latlng);
+        });
+
+        async function activarEdificios(){
+            if (capaEdificios !== null) {
+                mapa.addLayer(capaEdificios);
+                actualizarControlCapas();
+                return;
+            }
+
+            const respuesta = await fetch("/api/edificios");
+            const geojson = await respuesta.json();
+
+            capaEdificios = L.geoJSON(geojson, {
+                style: function(){
+                    return {
+                        color: "#1d4ed8",
+                        weight: 1,
+                        fillColor: "#3b82f6",
+                        fillOpacity: 0.35
+                    };
+                },
+                onEachFeature: function(feature, layer){
+                    layer.bindPopup(`
+                        <div class="popup">
+                            <h3>Edificación cercana</h3>
+                            <p><strong>GID:</strong> ${feature.properties.gid}</p>
+                            <p><strong>FID:</strong> ${feature.properties.fid}</p>
+                        </div>
+                    `);
+                }
+            }).addTo(mapa);
+
+            actualizarControlCapas();
+        }
+
+        async function activarHeatmap(){
+            if (capaHeatmap !== null) {
+                mapa.addLayer(capaHeatmap);
+                actualizarControlCapas();
+                return;
+            }
+
+            if (typeof L.heatLayer !== "function") {
+                console.warn("Leaflet Heat no está disponible.");
+                return;
+            }
+
+            const respuesta = await fetch("/api/edificios-puntos");
+            const puntos = await respuesta.json();
+
+            capaHeatmap = L.heatLayer(puntos, {
+                radius: 28,
+                blur: 22,
+                maxZoom: 17,
+                minOpacity: 0.35
+            }).addTo(mapa);
+
+            actualizarControlCapas();
+        }
+
+        async function mostrarZonaCritica(){
+            await activarAnillos();
+            await activarEdificios();
+
+            if (capaAnillos === null) {
+                return;
+            }
+
+            let capaCritica = null;
+
+            capaAnillos.eachLayer(function(layer){
+                if (layer.feature.properties.orden === 1) {
+                    capaCritica = layer;
+                }
+            });
+
+            if (capaCritica) {
+                restaurarEstiloAnillos();
+                mapa.fitBounds(capaCritica.getBounds());
+
+                const respuesta = await fetch("/api/zona-critica-punto");
+                const puntoCritico = await respuesta.json();
+
+                if (puntoCritico.lat && puntoCritico.lon) {
+                    mapa.setView([puntoCritico.lat, puntoCritico.lon], 15);
+
+                    L.popup()
+                        .setLatLng([puntoCritico.lat, puntoCritico.lon])
+                        .setContent(`
+                            <div class="popup">
+                                <h3>Zona crítica</h3>
+                                <p><strong>Rango:</strong> 0 - 250 m</p>
+                                <p><strong>Nivel:</strong> Presión muy alta</p>
+                                <p><strong>Mayor concentración:</strong> ${puntoCritico.total_edificios} edificaciones cercanas</p>
+                            </div>
+                        `)
+                        .openOn(mapa);
+                } else {
+                    capaCritica.openPopup(obtenerPuntoPopup(capaCritica));
+                }
+            }
+
+            actualizarControlCapas();
+        }
+
+        async function mostrarZonasCriticasPorRango(){
+            await activarAnillos();
+            restaurarEstiloAnillos();
+
+            if (capaZonasCriticas !== null) {
+                mapa.removeLayer(capaZonasCriticas);
+            }
+
+            const respuesta = await fetch("/api/zonas-criticas-rangos");
+            const zonas = await respuesta.json();
+
+            capaZonasCriticas = L.layerGroup();
+            let marcadorPrincipal = null;
+            let zonaPrincipal = null;
+
+            zonas.forEach(function(zona){
+                const color = colorZonaCritica(zona.orden);
+
+                const marcador = L.circleMarker([zona.lat, zona.lon], {
+                    radius: 9,
+                    color: "#0f172a",
+                    weight: 2,
+                    fillColor: color,
+                    fillOpacity: 0.95
+                });
+
+                marcador.bindPopup(`
+                    <div class="popup">
+                            <h3>Concentración por rango</h3>
+                            <p><strong>Rango:</strong> ${zona.rango}</p>
+                            <p><strong>Nivel:</strong> ${zona.nivel}</p>
+                            <p><strong>Punto con mayor concentración:</strong> ${zona.total_edificios} edificaciones</p>
+                    </div>
+                `);
+
+                marcador.addTo(capaZonasCriticas);
+
+                if (!zonaPrincipal || Number(zona.total_edificios) > Number(zonaPrincipal.total_edificios)) {
+                    zonaPrincipal = zona;
+                    marcadorPrincipal = marcador;
+                }
+            });
+
+            capaZonasCriticas.addTo(mapa);
+            capaZonasCriticas.eachLayer(function(layer){
+                if (layer.bringToFront) {
+                    layer.bringToFront();
+                }
+            });
+
+            if (zonas.length > 0) {
+                const bounds = L.latLngBounds(zonas.map(function(zona){
+                    return [zona.lat, zona.lon];
+                }));
+
+                mapa.fitBounds(bounds.pad(0.25));
+
+                if (marcadorPrincipal !== null) {
+                    setTimeout(function(){
+                        marcadorPrincipal.openPopup();
+                    }, 250);
+                }
+            }
+
+            actualizarControlCapas();
+        }
+
+        async function modoConcentracion(){
+            limpiarCapas();
+
+            await activarHumedal();
+            await activarHeatmap();
+
+            if (capaHumedal !== null) {
+                mapa.fitBounds(capaHumedal.getBounds());
+            }
+
+            actualizarControlCapas();
+        }
+
+        async function mostrarTodasLasCapas(){
+            await activarAnillos();
+            restaurarEstiloAnillos();
+            await activarHumedal();
+            await activarEdificios();
+            await activarHeatmap();
+
+            if (capaHeatmap !== null) {
+                mapa.removeLayer(capaHeatmap);
+            }
+
+            if (capaZonasCriticas !== null) {
+                mapa.removeLayer(capaZonasCriticas);
+                capaZonasCriticas = null;
+            }
+
+            if (capaFaunaEducativa !== null) {
+                mapa.removeLayer(capaFaunaEducativa);
+                capaFaunaEducativa = null;
+            }
+
+            if (capaZonasEcologicas !== null) {
+                mapa.removeLayer(capaZonasEcologicas);
+                capaZonasEcologicas = null;
+            }
+
+            ocultarPanelFauna();
+
+            actualizarControlCapas();
+        }
+
+        function limpiarCapasTematicas(){
+            if (capaZonasCriticas !== null) {
+                mapa.removeLayer(capaZonasCriticas);
+                capaZonasCriticas = null;
+            }
+
+            if (capaFaunaEducativa !== null) {
+                mapa.removeLayer(capaFaunaEducativa);
+                capaFaunaEducativa = null;
+            }
+
+            if (capaZonasEcologicas !== null) {
+                mapa.removeLayer(capaZonasEcologicas);
+                capaZonasEcologicas = null;
+            }
+
+            ocultarPanelFauna();
+            actualizarControlCapas();
+        }
+
+        function limpiarCapas(){
+            if (capaHumedal !== null) {
+                mapa.removeLayer(capaHumedal);
+            }
+
+            if (capaEdificios !== null) {
+                mapa.removeLayer(capaEdificios);
+            }
+
+            if (capaAnillos !== null) {
+                mapa.removeLayer(capaAnillos);
+            }
+
+            if (capaHeatmap !== null) {
+                mapa.removeLayer(capaHeatmap);
+            }
+
+            if (capaZonasCriticas !== null) {
+                mapa.removeLayer(capaZonasCriticas);
+                capaZonasCriticas = null;
+            }
+
+            if (capaFaunaEducativa !== null) {
+                mapa.removeLayer(capaFaunaEducativa);
+                capaFaunaEducativa = null;
+            }
+
+            if (capaZonasEcologicas !== null) {
+                mapa.removeLayer(capaZonasEcologicas);
+                capaZonasEcologicas = null;
+            }
+
+            ocultarPanelFauna();
+            actualizarControlCapas();
+        }
+
+        function centrarMapa(){
+            if (capaHumedal !== null) {
+                mapa.fitBounds(capaHumedal.getBounds());
+            } else {
+                mapa.setView([8.95, -79.45], 11);
+            }
+        }
+
+        function cambiarMapaBase(){
+            if (mapaActual === "claro") {
+                mapa.removeLayer(mapaClaro);
+                mapaSatelital.addTo(mapa);
+                mapaActual = "satelital";
+            } else {
+                mapa.removeLayer(mapaSatelital);
+                mapaClaro.addTo(mapa);
+                mapaActual = "claro";
+            }
+
+            actualizarControlCapas();
+        }
+
+        async function iniciar(){
+            await cargarResumen();
+            await activarAnillos();
+            await activarHumedal();
+            await activarEdificios();
+            await activarHeatmap();
+
+            if (capaHeatmap !== null) {
+                mapa.removeLayer(capaHeatmap);
+            }
+
+            if (capaHumedal !== null) {
+                capaHumedal.bringToBack();
+            }
+
+            if (capaAnillos !== null) {
+                if (modoFaunaEducativaActivo) {
+                    desactivarInteraccionAnillos();
+                } else {
+                    capaAnillos.bringToFront();
+                }
+            }
+
+            actualizarControlCapas();
+        }
+
+        iniciar();
+    </script>
+</body>
+</html>
+
+
