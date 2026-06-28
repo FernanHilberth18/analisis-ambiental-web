@@ -187,6 +187,7 @@
                 <label><input id="toggle-ecologicas" type="checkbox" onchange="toggleCapaPersonalizada('ecologicas', this.checked)"> Zonas ecológicas</label>
             </div>
 
+            <div id="map-status" class="map-status" aria-live="polite"></div>
             <div id="mapa"></div>
 
             <aside id="panel-punto" class="panel-punto">
@@ -407,6 +408,14 @@
 
     <script>
         const mapa = L.map("mapa").setView([8.95, -79.45], 11);
+        mapa.createPane("zonasPane");
+        mapa.createPane("heatPane");
+        mapa.createPane("faunaPane");
+        mapa.createPane("concentracionesPane");
+        mapa.getPane("zonasPane").style.zIndex = 350;
+        mapa.getPane("heatPane").style.zIndex = 430;
+        mapa.getPane("faunaPane").style.zIndex = 610;
+        mapa.getPane("concentracionesPane").style.zIndex = 720;
 
         const mapaClaro = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
             maxZoom: 19,
@@ -690,6 +699,18 @@
             document.getElementById("fauna-zona").textContent = mensaje;
             document.getElementById("fauna-presion").textContent = "Procesando capas del mapa...";
             lista.innerHTML = "<p class='fauna-cargando'>Cargando, espera un momento...</p>";
+        }
+
+        function mostrarEstadoMapa(mensaje){
+            const estado = document.getElementById("map-status");
+            estado.textContent = mensaje;
+            estado.classList.add("visible");
+        }
+
+        function ocultarEstadoMapa(){
+            const estado = document.getElementById("map-status");
+            estado.textContent = "";
+            estado.classList.remove("visible");
         }
 
         function buscarBotonPorTexto(texto){
@@ -1620,6 +1641,7 @@
 
             zonasEcologicasEducativas.forEach(function(zona){
                 const circulo = L.circle([zona.lat, zona.lon], {
+                    pane: "zonasPane",
                     radius: zona.radio,
                     color: zona.color,
                     weight: 3,
@@ -1630,6 +1652,7 @@
                 });
 
                 const etiqueta = L.marker([zona.lat, zona.lon], {
+                    pane: "zonasPane",
                     icon: L.divIcon({
                         className: "zona-eco-label",
                         html: `<span>${zona.etiqueta || zona.nombre}</span>`,
@@ -1838,6 +1861,7 @@
 
             especies.forEach(function(especie){
                 const marcador = L.circleMarker([especie.lat, especie.lon], {
+                    pane: "faunaPane",
                     radius: 8,
                     color: "#0f172a",
                     weight: 2,
@@ -2029,6 +2053,7 @@
             const puntos = await respuesta.json();
 
             capaHeatmap = L.heatLayer(puntos, {
+                pane: "heatPane",
                 radius: 28,
                 blur: 22,
                 maxZoom: 17,
@@ -2084,78 +2109,86 @@
         }
 
         async function mostrarZonasCriticasPorRango(){
-            await activarAnillos();
-            restaurarEstiloAnillos();
+            mostrarEstadoMapa("Cargando concentraciones por rango...");
 
-            if (capaZonasCriticas !== null) {
-                mapa.removeLayer(capaZonasCriticas);
-            }
+            try {
+                await activarAnillos();
+                restaurarEstiloAnillos();
 
-            const respuesta = await fetch("/api/zonas-criticas-rangos");
-            const zonas = await respuesta.json();
+                if (capaZonasCriticas !== null) {
+                    mapa.removeLayer(capaZonasCriticas);
+                }
 
-            capaZonasCriticas = L.layerGroup();
-            let marcadorPrincipal = null;
-            let zonaPrincipal = null;
+                const respuesta = await fetch("/api/zonas-criticas-rangos");
+                const zonas = await respuesta.json();
 
-            zonas.forEach(function(zona){
-                const color = colorZonaCritica(zona.orden);
+                capaZonasCriticas = L.layerGroup();
+                let marcadorPrincipal = null;
+                let zonaPrincipal = null;
 
-                const marcador = L.circleMarker([zona.lat, zona.lon], {
-                    radius: 9,
-                    color: "#0f172a",
-                    weight: 2,
-                    fillColor: color,
-                    fillOpacity: 0.95
+                zonas.forEach(function(zona){
+                    const color = colorZonaCritica(zona.orden);
+
+                    const marcador = L.circleMarker([zona.lat, zona.lon], {
+                        pane: "concentracionesPane",
+                        radius: 9,
+                        color: "#0f172a",
+                        weight: 2,
+                        fillColor: color,
+                        fillOpacity: 0.95
+                    });
+
+                    marcador.bindPopup(`
+                        <div class="popup">
+                                <h3>Concentración por rango</h3>
+                                <p><strong>Rango:</strong> ${zona.rango}</p>
+                                <p><strong>Nivel:</strong> ${zona.nivel}</p>
+                                <p><strong>Punto con mayor concentración:</strong> ${zona.total_edificios} edificaciones</p>
+                        </div>
+                    `);
+
+                    marcador.addTo(capaZonasCriticas);
+
+                    if (!zonaPrincipal || Number(zona.total_edificios) > Number(zonaPrincipal.total_edificios)) {
+                        zonaPrincipal = zona;
+                        marcadorPrincipal = marcador;
+                    }
                 });
 
-                marcador.bindPopup(`
-                    <div class="popup">
-                            <h3>Concentración por rango</h3>
-                            <p><strong>Rango:</strong> ${zona.rango}</p>
-                            <p><strong>Nivel:</strong> ${zona.nivel}</p>
-                            <p><strong>Punto con mayor concentración:</strong> ${zona.total_edificios} edificaciones</p>
-                    </div>
-                `);
+                capaZonasCriticas.addTo(mapa);
+                capaZonasCriticas.eachLayer(function(layer){
+                    if (layer.bringToFront) {
+                        layer.bringToFront();
+                    }
+                });
 
-                marcador.addTo(capaZonasCriticas);
+                if (zonas.length > 0) {
+                    const bounds = L.latLngBounds(zonas.map(function(zona){
+                        return [zona.lat, zona.lon];
+                    }));
 
-                if (!zonaPrincipal || Number(zona.total_edificios) > Number(zonaPrincipal.total_edificios)) {
-                    zonaPrincipal = zona;
-                    marcadorPrincipal = marcador;
+                    mapa.fitBounds(bounds.pad(0.25));
+
+                    if (marcadorPrincipal !== null && zonaPrincipal !== null) {
+                        setTimeout(function(){
+                            mapa.setView([zonaPrincipal.lat, zonaPrincipal.lon], 14);
+                            marcadorPrincipal.openPopup();
+                        }, 350);
+                    }
                 }
-            });
 
-            capaZonasCriticas.addTo(mapa);
-            capaZonasCriticas.eachLayer(function(layer){
-                if (layer.bringToFront) {
-                    layer.bringToFront();
-                }
-            });
-
-            if (zonas.length > 0) {
-                const bounds = L.latLngBounds(zonas.map(function(zona){
-                    return [zona.lat, zona.lon];
-                }));
-
-                mapa.fitBounds(bounds.pad(0.25));
-
-                if (marcadorPrincipal !== null) {
-                    setTimeout(function(){
-                        marcadorPrincipal.openPopup();
-                    }, 250);
-                }
+                actualizarControlCapas();
+            } finally {
+                ocultarEstadoMapa();
             }
-
-            actualizarControlCapas();
         }
 
         async function modoConcentracion(){
             cambiarEstadoBoton("Concentración urbana", "Cargando...", true);
+            mostrarEstadoMapa("Cargando mapa de concentración urbana...");
 
             try {
                 limpiarCapas();
-                mostrarEstadoFauna("Cargando concentración urbana");
 
                 await activarHumedal();
                 await activarHeatmap();
@@ -2167,6 +2200,7 @@
                 ocultarPanelFauna();
                 actualizarControlCapas();
             } finally {
+                ocultarEstadoMapa();
                 cambiarEstadoBoton("Concentración urbana", "Cargando...", false);
             }
         }

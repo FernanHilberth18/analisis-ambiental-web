@@ -508,6 +508,21 @@ button:focus-visible {
     accent-color: var(--mangrove);
 }
 
+.map-status {
+    display: none;
+    margin: 10px 0;
+    padding: 11px 14px;
+    border-radius: 8px;
+    border: 1px solid #bae6fd;
+    color: #075985;
+    background: #e0f2fe;
+    font-weight: 800;
+}
+
+.map-status.visible {
+    display: block;
+}
+
 .toolbar-group {
     min-width: 0;
     display: flex;
