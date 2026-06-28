@@ -52,6 +52,12 @@ button:hover {
     transform: translateY(-1px);
 }
 
+button:disabled {
+    cursor: wait;
+    opacity: 0.68;
+    transform: none;
+}
+
 button:focus-visible {
     outline: 3px solid rgba(14, 116, 144, 0.28);
     outline-offset: 2px;
@@ -536,7 +542,6 @@ button:focus-visible {
 #mapa {
     position: relative;
     isolation: isolate;
-    contain: layout paint;
     width: 100%;
     height: clamp(520px, 68vh, 800px);
     min-height: 520px;
@@ -544,24 +549,6 @@ button:focus-visible {
     border: 1px solid #b9d3d4;
     overflow: hidden;
     z-index: 0;
-}
-
-#mapa .leaflet-control-container {
-    position: absolute;
-    inset: 0;
-    overflow: hidden;
-    border-radius: 8px;
-    pointer-events: none;
-    z-index: 20;
-}
-
-#mapa .leaflet-top,
-#mapa .leaflet-bottom {
-    z-index: 20;
-}
-
-#mapa .leaflet-control {
-    pointer-events: auto;
 }
 
 .panel-fauna {

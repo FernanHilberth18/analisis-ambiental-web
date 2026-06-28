@@ -682,6 +682,33 @@
             });
         }
 
+        function mostrarEstadoFauna(mensaje){
+            const panel = document.getElementById("panel-fauna");
+            const lista = document.getElementById("lista-fauna");
+
+            panel.classList.add("visible");
+            document.getElementById("fauna-zona").textContent = mensaje;
+            document.getElementById("fauna-presion").textContent = "Procesando capas del mapa...";
+            lista.innerHTML = "<p class='fauna-cargando'>Cargando, espera un momento...</p>";
+        }
+
+        function buscarBotonPorTexto(texto){
+            return Array.from(document.querySelectorAll("button")).find(function(boton){
+                return boton.textContent.trim() === texto;
+            });
+        }
+
+        function cambiarEstadoBoton(textoOriginal, textoTemporal, cargando){
+            const boton = buscarBotonPorTexto(cargando ? textoOriginal : textoTemporal);
+
+            if (!boton) {
+                return;
+            }
+
+            boton.disabled = cargando;
+            boton.textContent = cargando ? textoTemporal : textoOriginal;
+        }
+
         async function toggleCapaPersonalizada(nombre, visible){
             if (nombre === "humedal") {
                 if (visible) {
@@ -728,7 +755,7 @@
                 if (visible) {
                     await activarModoFaunaEducativa();
                 } else {
-                    cerrarModoFaunaEducativa();
+                    cerrarModoFaunaEducativa(false);
                 }
             }
 
@@ -1646,7 +1673,7 @@
             cargarTodasLasEspeciesFauna();
         }
 
-        function cerrarModoFaunaEducativa(){
+        function cerrarModoFaunaEducativa(quitarZonasEcologicas = true){
             ocultarPanelFauna();
             activarInteraccionAnillos();
 
@@ -1656,7 +1683,7 @@
                 actualizarControlCapas();
             }
 
-            if (capaZonasEcologicas !== null) {
+            if (quitarZonasEcologicas && capaZonasEcologicas !== null) {
                 mapa.removeLayer(capaZonasEcologicas);
                 capaZonasEcologicas = null;
                 actualizarControlCapas();
@@ -2124,16 +2151,24 @@
         }
 
         async function modoConcentracion(){
-            limpiarCapas();
+            cambiarEstadoBoton("Concentración urbana", "Cargando...", true);
 
-            await activarHumedal();
-            await activarHeatmap();
+            try {
+                limpiarCapas();
+                mostrarEstadoFauna("Cargando concentración urbana");
 
-            if (capaHumedal !== null) {
-                mapa.fitBounds(capaHumedal.getBounds());
+                await activarHumedal();
+                await activarHeatmap();
+
+                if (capaHumedal !== null) {
+                    mapa.fitBounds(capaHumedal.getBounds());
+                }
+
+                ocultarPanelFauna();
+                actualizarControlCapas();
+            } finally {
+                cambiarEstadoBoton("Concentración urbana", "Cargando...", false);
             }
-
-            actualizarControlCapas();
         }
 
         async function mostrarTodasLasCapas(){
