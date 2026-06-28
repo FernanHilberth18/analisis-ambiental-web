@@ -51,3 +51,14 @@ def obtener_varias_filas(sql, parametros=None):
     except SQLAlchemyError as error:
         print("Error en obtener_varias_filas:", error)
         return []
+
+
+def ejecutar_sql(sql, parametros=None):
+    try:
+        with engine.begin() as conn:
+            conn.execute(text(sql), parametros or {})
+            return True
+
+    except SQLAlchemyError as error:
+        print("Error en ejecutar_sql:", error)
+        return False

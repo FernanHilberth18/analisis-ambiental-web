@@ -1,15 +1,18 @@
 ﻿from flask import Flask, render_template, jsonify, request
-from db import obtener_una_fila, obtener_varias_filas
+from db import ejecutar_sql, obtener_una_fila, obtener_varias_filas
 from flask import abort
+from flask import redirect, session, url_for
+from werkzeug.security import check_password_hash, generate_password_hash
 import os
 import math
+import random
+import re
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 1 * 1024 * 1024
 app.config["JSON_SORT_KEYS"] = False
 
-if os.getenv("SECRET_KEY"):
-    app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
+app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "clave-local-de-desarrollo")
 
 
 @app.after_request
@@ -42,6 +45,8 @@ def agregar_cabeceras_seguridad(response):
 
 TABLA_HUMEDAL = "humedal_bahia_panama"
 TABLA_EDIFICIOS = "edificios_humedal_1km"
+TABLA_USUARIOS = "usuarios_comentarios"
+TABLA_COMENTARIOS = "comentarios_humedal"
 TABLAS_PERMITIDAS = {TABLA_HUMEDAL, TABLA_EDIFICIOS}
 ZONAS_VALIDAS = {
     "Fangales intermareales",
@@ -185,6 +190,85 @@ FAUNA_EDUCATIVA = [
     },
 ]
 
+tablas_comentarios_listas = False
+
+
+@app.before_request
+def preparar_tablas_comentarios():
+    global tablas_comentarios_listas
+
+    if tablas_comentarios_listas:
+        return
+
+    ejecutar_sql(f"""
+        CREATE TABLE IF NOT EXISTS {TABLA_USUARIOS} (
+            id SERIAL PRIMARY KEY,
+            nombre VARCHAR(40) UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+    """)
+
+    ejecutar_sql(f"""
+        CREATE TABLE IF NOT EXISTS {TABLA_COMENTARIOS} (
+            id SERIAL PRIMARY KEY,
+            usuario_id INTEGER NOT NULL REFERENCES {TABLA_USUARIOS}(id) ON DELETE CASCADE,
+            contenido VARCHAR(800) NOT NULL,
+            estado VARCHAR(20) NOT NULL DEFAULT 'aprobado',
+            creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+    """)
+
+    tablas_comentarios_listas = True
+
+
+def usuario_actual():
+    if "usuario_id" not in session:
+        return None
+
+    return {
+        "id": session["usuario_id"],
+        "nombre": session.get("usuario_nombre", "Usuario")
+    }
+
+
+def guardar_mensaje(texto):
+    session["mensaje"] = texto
+
+
+def mensaje_flash():
+    return session.pop("mensaje", None)
+
+
+def captcha_nuevo():
+    a = random.randint(2, 9)
+    b = random.randint(2, 9)
+    session["captcha_comentario"] = str(a + b)
+    return f"{a} + {b}"
+
+
+def captcha_valido(valor):
+    esperado = session.pop("captcha_comentario", None)
+    return esperado is not None and valor.strip() == esperado
+
+
+def nombre_usuario_valido(nombre):
+    return re.fullmatch(r"[A-Za-zÁÉÍÓÚáéíóúÑñ0-9_ ]{3,40}", nombre or "") is not None
+
+
+def comentarios_recientes():
+    return obtener_varias_filas(f"""
+        SELECT
+            c.contenido,
+            c.creado_en,
+            u.nombre AS usuario
+        FROM {TABLA_COMENTARIOS} c
+        JOIN {TABLA_USUARIOS} u ON u.id = c.usuario_id
+        WHERE c.estado = 'aprobado'
+        ORDER BY c.creado_en DESC
+        LIMIT 20;
+    """)
+
 
 # =========================
 # RUTA PRINCIPAL
@@ -200,7 +284,120 @@ def index():
 
     datos = obtener_una_fila(sql)
 
-    return render_template("index.html", datos=datos)
+    return render_template(
+        "index.html",
+        datos=datos,
+        usuario=usuario_actual(),
+        comentarios=comentarios_recientes(),
+        captcha_pregunta=captcha_nuevo(),
+        mensaje=mensaje_flash()
+    )
+
+
+@app.post("/registro")
+def registrar_usuario():
+    if request.form.get("sitio_web", "").strip():
+        guardar_mensaje("No se pudo procesar el registro.")
+        return redirect(url_for("index"))
+
+    nombre = request.form.get("nombre", "").strip()
+    password = request.form.get("password", "")
+
+    if not nombre_usuario_valido(nombre):
+        guardar_mensaje("El nombre debe tener entre 3 y 40 caracteres.")
+        return redirect(url_for("index"))
+
+    if len(password) < 6:
+        guardar_mensaje("La contraseña debe tener al menos 6 caracteres.")
+        return redirect(url_for("index"))
+
+    existente = obtener_una_fila(
+        f"SELECT id FROM {TABLA_USUARIOS} WHERE LOWER(nombre) = LOWER(:nombre);",
+        {"nombre": nombre}
+    )
+
+    if existente:
+        guardar_mensaje("Ese usuario ya existe.")
+        return redirect(url_for("index"))
+
+    ejecutar_sql(
+        f"INSERT INTO {TABLA_USUARIOS} (nombre, password_hash) VALUES (:nombre, :password_hash);",
+        {"nombre": nombre, "password_hash": generate_password_hash(password)}
+    )
+    usuario = obtener_una_fila(
+        f"SELECT id, nombre FROM {TABLA_USUARIOS} WHERE LOWER(nombre) = LOWER(:nombre);",
+        {"nombre": nombre}
+    )
+    session["usuario_id"] = usuario["id"]
+    session["usuario_nombre"] = usuario["nombre"]
+    guardar_mensaje("Registro completado. Ya puedes comentar.")
+
+    return redirect(url_for("index"))
+
+
+@app.post("/login")
+def iniciar_sesion():
+    nombre = request.form.get("nombre", "").strip()
+    password = request.form.get("password", "")
+    usuario = obtener_una_fila(
+        f"SELECT id, nombre, password_hash FROM {TABLA_USUARIOS} WHERE LOWER(nombre) = LOWER(:nombre);",
+        {"nombre": nombre}
+    )
+
+    if not usuario or not check_password_hash(usuario["password_hash"], password):
+        guardar_mensaje("Usuario o contraseña incorrectos.")
+        return redirect(url_for("index"))
+
+    session["usuario_id"] = usuario["id"]
+    session["usuario_nombre"] = usuario["nombre"]
+    guardar_mensaje("Sesión iniciada.")
+
+    return redirect(url_for("index"))
+
+
+@app.post("/logout")
+def cerrar_sesion():
+    session.clear()
+    guardar_mensaje("Sesión cerrada.")
+    return redirect(url_for("index"))
+
+
+@app.post("/comentarios")
+def crear_comentario():
+    usuario = usuario_actual()
+
+    if usuario is None:
+        guardar_mensaje("Inicia sesión para comentar.")
+        return redirect(url_for("index"))
+
+    if request.form.get("sitio_web", "").strip():
+        guardar_mensaje("Comentario bloqueado por validación anti-bot.")
+        return redirect(url_for("index"))
+
+    if not captcha_valido(request.form.get("captcha", "")):
+        guardar_mensaje("Captcha incorrecto. Intenta de nuevo.")
+        return redirect(url_for("index"))
+
+    contenido = request.form.get("contenido", "").strip()
+
+    if len(contenido) < 5:
+        guardar_mensaje("El comentario debe tener al menos 5 caracteres.")
+        return redirect(url_for("index"))
+
+    if len(contenido) > 800:
+        guardar_mensaje("El comentario no puede superar 800 caracteres.")
+        return redirect(url_for("index"))
+
+    ejecutar_sql(
+        f"""
+        INSERT INTO {TABLA_COMENTARIOS} (usuario_id, contenido)
+        VALUES (:usuario_id, :contenido);
+        """,
+        {"usuario_id": usuario["id"], "contenido": contenido}
+    )
+    guardar_mensaje("Comentario publicado.")
+
+    return redirect(url_for("index"))
 
 
 # =========================

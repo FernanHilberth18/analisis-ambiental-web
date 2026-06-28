@@ -1266,6 +1266,128 @@ tbody tr:hover {
     font-weight: 800;
 }
 
+.comentarios-section {
+    width: var(--page-width);
+    margin: 18px auto 32px auto;
+    padding: 22px;
+    border-radius: 8px;
+    border: 1px solid rgba(215, 229, 223, 0.9);
+    background: rgba(255, 255, 255, 0.94);
+    box-shadow: var(--shadow-soft);
+}
+
+.comentarios-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 18px;
+    margin-bottom: 16px;
+}
+
+.comentarios-header h2 {
+    margin: 4px 0;
+    color: #07384b;
+}
+
+.comentarios-header p,
+.comentario-vacio {
+    margin: 0;
+    color: #53676b;
+}
+
+.comentario-mensaje,
+.comentario-sesion {
+    margin: 0 0 14px 0;
+    padding: 11px 14px;
+    border-radius: 8px;
+    color: #075985;
+    background: #e0f2fe;
+    border: 1px solid #bae6fd;
+    font-weight: 800;
+}
+
+.auth-grid,
+.captcha-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.auth-card,
+.comentario-form,
+.comentario-item {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fbfdf9;
+}
+
+.auth-card,
+.comentario-form {
+    padding: 16px;
+}
+
+.auth-card h3 {
+    margin: 0 0 12px 0;
+    color: #07384b;
+}
+
+.auth-card label,
+.comentario-form label {
+    display: grid;
+    gap: 6px;
+    margin-bottom: 12px;
+    color: #20363d;
+    font-weight: 800;
+}
+
+.auth-card input,
+.comentario-form input,
+.comentario-form textarea {
+    width: 100%;
+    border: 1px solid #cbd5d1;
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: #20363d;
+    background: #ffffff;
+    font: inherit;
+}
+
+.campo-oculto {
+    position: absolute;
+    left: -10000px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+}
+
+.comentarios-lista {
+    display: grid;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.comentario-item {
+    padding: 14px;
+}
+
+.comentario-item div {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    color: #07384b;
+}
+
+.comentario-item span {
+    color: #64777a;
+    font-size: 12px;
+}
+
+.comentario-item p {
+    margin: 8px 0 0 0;
+    color: #344a52;
+    line-height: 1.5;
+}
+
 .leaflet-control-layers {
     border: 1px solid rgba(215, 229, 223, 0.95) !important;
     border-radius: 8px !important;
