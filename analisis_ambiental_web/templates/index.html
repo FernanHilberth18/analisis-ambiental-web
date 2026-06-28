@@ -408,11 +408,13 @@
 
     <script>
         const mapa = L.map("mapa").setView([8.95, -79.45], 11);
+        mapa.createPane("humedalPane");
         mapa.createPane("zonasPane");
         mapa.createPane("heatPane");
         mapa.createPane("faunaPane");
         mapa.createPane("concentracionesPane");
-        mapa.getPane("zonasPane").style.zIndex = 350;
+        mapa.getPane("humedalPane").style.zIndex = 320;
+        mapa.getPane("zonasPane").style.zIndex = 560;
         mapa.getPane("heatPane").style.zIndex = 430;
         mapa.getPane("faunaPane").style.zIndex = 610;
         mapa.getPane("concentracionesPane").style.zIndex = 720;
@@ -1465,6 +1467,7 @@
             const geojson = await respuesta.json();
 
             capaHumedal = L.geoJSON(geojson, {
+                pane: "humedalPane",
                 style: function(){
                     return {
                         color: "#0f766e",
@@ -1680,6 +1683,11 @@
             });
 
             capaZonasEcologicas.addTo(mapa);
+            capaZonasEcologicas.eachLayer(function(layer){
+                if (layer.bringToFront) {
+                    layer.bringToFront();
+                }
+            });
             actualizarControlCapas();
         }
 
