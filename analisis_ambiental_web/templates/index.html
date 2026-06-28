@@ -456,6 +456,10 @@
             <div class="auth-grid">
                 <form class="auth-card" action="{{ url_for('iniciar_sesion') }}" method="post">
                     <h3>Iniciar sesión</h3>
+                    {% if google_login_disponible %}
+                        <a class="google-login" href="{{ url_for('iniciar_sesion_google') }}">Entrar con Google</a>
+                        <span class="auth-separador">o usa usuario y contraseña</span>
+                    {% endif %}
                     <label>Usuario <input type="text" name="nombre" required></label>
                     <label>Contraseña <input type="password" name="password" required></label>
                     <button type="submit">Entrar</button>
@@ -463,6 +467,9 @@
 
                 <form class="auth-card" action="{{ url_for('registrar_usuario') }}" method="post">
                     <h3>Crear cuenta</h3>
+                    {% if google_login_disponible %}
+                        <p class="auth-nota">También puedes usar el botón de Google para crear tu acceso automáticamente.</p>
+                    {% endif %}
                     <label>Usuario <input type="text" name="nombre" minlength="3" maxlength="40" required></label>
                     <label>Contraseña <input type="password" name="password" minlength="6" required></label>
                     <label class="campo-oculto">Sitio web <input type="text" name="sitio_web" tabindex="-1" autocomplete="off"></label>

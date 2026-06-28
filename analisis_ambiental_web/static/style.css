@@ -1338,6 +1338,34 @@ tbody tr:hover {
     color: #07384b;
 }
 
+.google-login {
+    min-height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    margin-bottom: 10px;
+    border: 1px solid #cbd5d1;
+    border-radius: 8px;
+    color: #20363d;
+    background: #ffffff;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.google-login:hover {
+    border-color: #94a3b8;
+    box-shadow: 0 10px 22px rgba(15, 38, 48, 0.1);
+}
+
+.auth-separador,
+.auth-nota {
+    display: block;
+    margin: 0 0 12px 0;
+    color: #64777a;
+    font-size: 13px;
+}
+
 .auth-card label,
 .comentario-form label {
     display: grid;

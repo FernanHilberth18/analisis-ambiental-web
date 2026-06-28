@@ -3,6 +3,10 @@ from db import ejecutar_sql, obtener_una_fila, obtener_varias_filas
 from flask import abort
 from flask import redirect, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
+try:
+    from authlib.integrations.flask_client import OAuth
+except ImportError:
+    OAuth = None
 import os
 import math
 import json
@@ -16,6 +20,21 @@ app.config["MAX_CONTENT_LENGTH"] = 1 * 1024 * 1024
 app.config["JSON_SORT_KEYS"] = False
 
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "clave-local-de-desarrollo")
+oauth = OAuth(app) if OAuth is not None else None
+
+
+def google_oauth_configurado():
+    return bool(oauth and os.getenv("GOOGLE_CLIENT_ID") and os.getenv("GOOGLE_CLIENT_SECRET"))
+
+
+if google_oauth_configurado():
+    oauth.register(
+        name="google",
+        client_id=os.getenv("GOOGLE_CLIENT_ID"),
+        client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
+        server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
+        client_kwargs={"scope": "openid email profile"}
+    )
 
 
 @app.after_request
@@ -209,9 +228,16 @@ def preparar_tablas_comentarios():
             id SERIAL PRIMARY KEY,
             nombre VARCHAR(40) UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
+            proveedor VARCHAR(20) NOT NULL DEFAULT 'local',
+            proveedor_id VARCHAR(120),
+            email VARCHAR(160),
             creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
     """)
+    ejecutar_sql(f"ALTER TABLE {TABLA_USUARIOS} ADD COLUMN IF NOT EXISTS proveedor VARCHAR(20) NOT NULL DEFAULT 'local';")
+    ejecutar_sql(f"ALTER TABLE {TABLA_USUARIOS} ADD COLUMN IF NOT EXISTS proveedor_id VARCHAR(120);")
+    ejecutar_sql(f"ALTER TABLE {TABLA_USUARIOS} ADD COLUMN IF NOT EXISTS email VARCHAR(160);")
+    ejecutar_sql(f"CREATE UNIQUE INDEX IF NOT EXISTS idx_{TABLA_USUARIOS}_proveedor_id ON {TABLA_USUARIOS} (proveedor, proveedor_id) WHERE proveedor_id IS NOT NULL;")
 
     ejecutar_sql(f"""
         CREATE TABLE IF NOT EXISTS {TABLA_COMENTARIOS} (
@@ -297,6 +323,22 @@ def nombre_usuario_valido(nombre):
     return re.fullmatch(r"[A-Za-zÁÉÍÓÚáéíóúÑñ0-9_ ]{3,40}", nombre or "") is not None
 
 
+def nombre_unico_google(nombre_base):
+    limpio = re.sub(r"[^A-Za-zÁÉÍÓÚáéíóúÑñ0-9_ ]", "", nombre_base or "Usuario Google").strip()
+    limpio = limpio[:32] or "Usuario Google"
+    candidato = limpio
+    contador = 2
+
+    while obtener_una_fila(
+        f"SELECT id FROM {TABLA_USUARIOS} WHERE LOWER(nombre) = LOWER(:nombre);",
+        {"nombre": candidato}
+    ):
+        candidato = f"{limpio[:28]} {contador}"
+        contador += 1
+
+    return candidato
+
+
 def comentarios_recientes():
     return obtener_varias_filas(f"""
         SELECT
@@ -332,6 +374,7 @@ def index():
         comentarios=comentarios_recientes(),
         captcha_pregunta=captcha_nuevo(),
         recaptcha_site_key=recaptcha_site_key(),
+        google_login_disponible=google_oauth_configurado(),
         mensaje=mensaje_flash()
     )
 
@@ -393,6 +436,85 @@ def iniciar_sesion():
     session["usuario_id"] = usuario["id"]
     session["usuario_nombre"] = usuario["nombre"]
     guardar_mensaje("Sesión iniciada.")
+
+    return redirect(url_for("index"))
+
+
+@app.get("/login/google")
+def iniciar_sesion_google():
+    if not google_oauth_configurado():
+        guardar_mensaje("El inicio con Google todavía no está configurado.")
+        return redirect(url_for("index"))
+
+    redirect_uri = url_for("google_callback", _external=True)
+
+    if os.getenv("FORCE_HTTPS", "").lower() == "true":
+        redirect_uri = redirect_uri.replace("http://", "https://", 1)
+
+    return oauth.google.authorize_redirect(redirect_uri)
+
+
+@app.get("/auth/google")
+def google_callback():
+    if not google_oauth_configurado():
+        guardar_mensaje("El inicio con Google todavía no está configurado.")
+        return redirect(url_for("index"))
+
+    try:
+        token = oauth.google.authorize_access_token()
+        info = token.get("userinfo") or oauth.google.userinfo()
+    except Exception as error:
+        print("Error en login con Google:", error)
+        guardar_mensaje("No se pudo iniciar sesión con Google.")
+        return redirect(url_for("index"))
+
+    proveedor_id = info.get("sub")
+    email = info.get("email", "")
+    nombre = info.get("name") or email.split("@")[0] or "Usuario Google"
+
+    if not proveedor_id:
+        guardar_mensaje("Google no devolvió un identificador válido.")
+        return redirect(url_for("index"))
+
+    usuario = obtener_una_fila(
+        f"""
+        SELECT id, nombre
+        FROM {TABLA_USUARIOS}
+        WHERE proveedor = 'google'
+        AND proveedor_id = :proveedor_id;
+        """,
+        {"proveedor_id": proveedor_id}
+    )
+
+    if not usuario:
+        nombre = nombre_unico_google(nombre)
+        ejecutar_sql(
+            f"""
+            INSERT INTO {TABLA_USUARIOS}
+                (nombre, password_hash, proveedor, proveedor_id, email)
+            VALUES
+                (:nombre, :password_hash, 'google', :proveedor_id, :email);
+            """,
+            {
+                "nombre": nombre,
+                "password_hash": generate_password_hash(os.urandom(24).hex()),
+                "proveedor_id": proveedor_id,
+                "email": email
+            }
+        )
+        usuario = obtener_una_fila(
+            f"""
+            SELECT id, nombre
+            FROM {TABLA_USUARIOS}
+            WHERE proveedor = 'google'
+            AND proveedor_id = :proveedor_id;
+            """,
+            {"proveedor_id": proveedor_id}
+        )
+
+    session["usuario_id"] = usuario["id"]
+    session["usuario_nombre"] = usuario["nombre"]
+    guardar_mensaje("Sesión iniciada con Google.")
 
     return redirect(url_for("index"))
 
