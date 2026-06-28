@@ -5,8 +5,11 @@ from flask import redirect, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 import os
 import math
+import json
 import random
 import re
+import urllib.parse
+import urllib.request
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 1 * 1024 * 1024
@@ -19,11 +22,12 @@ app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "clave-local-de-desarrollo")
 def agregar_cabeceras_seguridad(response):
     csp = (
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net; "
+        "script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/; "
         "style-src 'self' 'unsafe-inline' https://unpkg.com; "
         "img-src 'self' data: https://*.tile.openstreetmap.org https://server.arcgisonline.com; "
         "connect-src 'self'; "
         "font-src 'self'; "
+        "frame-src 'self' https://www.google.com/recaptcha/ https://recaptcha.google.com/recaptcha/; "
         "object-src 'none'; "
         "base-uri 'self'; "
         "frame-ancestors 'none'"
@@ -252,6 +256,43 @@ def captcha_valido(valor):
     return esperado is not None and valor.strip() == esperado
 
 
+def recaptcha_site_key():
+    return os.getenv("RECAPTCHA_SITE_KEY", "")
+
+
+def recaptcha_secret_key():
+    return os.getenv("RECAPTCHA_SECRET_KEY", "")
+
+
+def recaptcha_configurado():
+    return bool(recaptcha_site_key() and recaptcha_secret_key())
+
+
+def recaptcha_valido(token, ip_remota):
+    if not token:
+        return False
+
+    datos = urllib.parse.urlencode({
+        "secret": recaptcha_secret_key(),
+        "response": token,
+        "remoteip": ip_remota or ""
+    }).encode("utf-8")
+
+    solicitud = urllib.request.Request(
+        "https://www.google.com/recaptcha/api/siteverify",
+        data=datos,
+        method="POST"
+    )
+
+    try:
+        with urllib.request.urlopen(solicitud, timeout=6) as respuesta:
+            resultado = json.loads(respuesta.read().decode("utf-8"))
+            return bool(resultado.get("success"))
+    except Exception as error:
+        print("Error verificando reCAPTCHA:", error)
+        return False
+
+
 def nombre_usuario_valido(nombre):
     return re.fullmatch(r"[A-Za-zÁÉÍÓÚáéíóúÑñ0-9_ ]{3,40}", nombre or "") is not None
 
@@ -290,6 +331,7 @@ def index():
         usuario=usuario_actual(),
         comentarios=comentarios_recientes(),
         captcha_pregunta=captcha_nuevo(),
+        recaptcha_site_key=recaptcha_site_key(),
         mensaje=mensaje_flash()
     )
 
@@ -374,9 +416,16 @@ def crear_comentario():
         guardar_mensaje("Comentario bloqueado por validación anti-bot.")
         return redirect(url_for("index"))
 
-    if not captcha_valido(request.form.get("captcha", "")):
-        guardar_mensaje("Captcha incorrecto. Intenta de nuevo.")
-        return redirect(url_for("index"))
+    if recaptcha_configurado():
+        token = request.form.get("g-recaptcha-response", "")
+
+        if not recaptcha_valido(token, request.remote_addr):
+            guardar_mensaje("Verificación reCAPTCHA incorrecta. Intenta de nuevo.")
+            return redirect(url_for("index"))
+    else:
+        if not captcha_valido(request.form.get("captcha", "")):
+            guardar_mensaje("Captcha incorrecto. Intenta de nuevo.")
+            return redirect(url_for("index"))
 
     contenido = request.form.get("contenido", "").strip()
 
