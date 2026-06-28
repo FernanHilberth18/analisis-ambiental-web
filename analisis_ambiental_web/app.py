@@ -21,13 +21,19 @@ app.config["JSON_SORT_KEYS"] = False
 
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "clave-local-de-desarrollo")
 oauth = OAuth(app) if OAuth is not None else None
+google_oauth_registrado = False
 
 
 def google_oauth_configurado():
     return bool(oauth and os.getenv("GOOGLE_CLIENT_ID") and os.getenv("GOOGLE_CLIENT_SECRET"))
 
 
-if google_oauth_configurado():
+def registrar_google_oauth():
+    global google_oauth_registrado
+
+    if google_oauth_registrado or not google_oauth_configurado():
+        return google_oauth_registrado
+
     oauth.register(
         name="google",
         client_id=os.getenv("GOOGLE_CLIENT_ID"),
@@ -35,6 +41,11 @@ if google_oauth_configurado():
         server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
         client_kwargs={"scope": "openid email profile"}
     )
+    google_oauth_registrado = True
+    return google_oauth_registrado
+
+
+registrar_google_oauth()
 
 
 @app.after_request
@@ -374,7 +385,7 @@ def index():
         comentarios=comentarios_recientes(),
         captcha_pregunta=captcha_nuevo(),
         recaptcha_site_key=recaptcha_site_key(),
-        google_login_disponible=google_oauth_configurado(),
+        google_login_disponible=registrar_google_oauth(),
         mensaje=mensaje_flash()
     )
 
@@ -442,7 +453,7 @@ def iniciar_sesion():
 
 @app.get("/login/google")
 def iniciar_sesion_google():
-    if not google_oauth_configurado():
+    if not registrar_google_oauth():
         guardar_mensaje("El inicio con Google todavía no está configurado.")
         return redirect(url_for("index"))
 
@@ -456,7 +467,7 @@ def iniciar_sesion_google():
 
 @app.get("/auth/google")
 def google_callback():
-    if not google_oauth_configurado():
+    if not registrar_google_oauth():
         guardar_mensaje("El inicio con Google todavía no está configurado.")
         return redirect(url_for("index"))
 
@@ -1183,6 +1194,14 @@ def api_diagnostico():
     datos = {
         "tabla_humedal": TABLA_HUMEDAL,
         "tabla_edificios": TABLA_EDIFICIOS,
+        "seguridad": {
+            "authlib_disponible": OAuth is not None,
+            "google_client_id_configurado": bool(os.getenv("GOOGLE_CLIENT_ID")),
+            "google_client_secret_configurado": bool(os.getenv("GOOGLE_CLIENT_SECRET")),
+            "google_login_disponible": registrar_google_oauth(),
+            "recaptcha_site_key_configurado": bool(recaptcha_site_key()),
+            "recaptcha_secret_key_configurado": bool(recaptcha_secret_key())
+        },
         "columnas_humedal": obtener_varias_filas(f"""
             SELECT column_name, data_type
             FROM information_schema.columns
