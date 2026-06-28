@@ -5,8 +5,10 @@ from flask import redirect, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 try:
     from authlib.integrations.flask_client import OAuth
-except ImportError:
+    AUTHLIB_IMPORT_ERROR = ""
+except ImportError as error:
     OAuth = None
+    AUTHLIB_IMPORT_ERROR = str(error)
 import os
 import math
 import json
@@ -1196,6 +1198,7 @@ def api_diagnostico():
         "tabla_edificios": TABLA_EDIFICIOS,
         "seguridad": {
             "authlib_disponible": OAuth is not None,
+            "authlib_error": AUTHLIB_IMPORT_ERROR,
             "google_client_id_configurado": bool(os.getenv("GOOGLE_CLIENT_ID")),
             "google_client_secret_configurado": bool(os.getenv("GOOGLE_CLIENT_SECRET")),
             "google_login_disponible": registrar_google_oauth(),
