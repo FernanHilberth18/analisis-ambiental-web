@@ -1687,13 +1687,27 @@
             modoFaunaEducativaActivo = true;
             document.getElementById("panel-fauna").classList.add("visible");
             desactivarInteraccionAnillos();
+            mostrarEstadoMapa("Cargando fauna educativa...");
 
             if (capaHumedal !== null) {
                 mapa.fitBounds(capaHumedal.getBounds());
             }
 
+            if (capaFaunaEducativa === null) {
+                capaFaunaEducativa = L.layerGroup().addTo(mapa);
+            } else {
+                mapa.addLayer(capaFaunaEducativa);
+            }
+
             activarZonasEcologicas();
-            cargarTodasLasEspeciesFauna();
+            sincronizarPanelCapas();
+
+            try {
+                await cargarTodasLasEspeciesFauna();
+            } finally {
+                ocultarEstadoMapa();
+                actualizarControlCapas();
+            }
         }
 
         function cerrarModoFaunaEducativa(quitarZonasEcologicas = true){
@@ -1713,9 +1727,18 @@
             }
         }
 
+        function urlImagenFauna(especie){
+            return especie.imagen_url + "?v=3";
+        }
+
+        function atributoImagenRespaldo(){
+            return "this.style.display='none'; this.closest('.animal-card, .popup')?.classList.add('sin-imagen');";
+        }
+
         function contenidoPopupEspecie(especie){
             return `
                 <div class="popup">
+                    <img src="${urlImagenFauna(especie)}" alt="${especie.nombre_comun}" loading="lazy" onerror="${atributoImagenRespaldo()}">
                     <h3>${especie.nombre_comun}</h3>
                     <p><strong>Nombre científico:</strong> ${especie.nombre_cientifico}</p>
                     <p><strong>Zona:</strong> ${especie.zona_principal}</p>
@@ -1743,7 +1766,7 @@
             tarjeta.className = "animal-card";
 
             tarjeta.innerHTML = `
-                <img src="${especie.imagen_url}" alt="${especie.nombre_comun}" loading="lazy">
+                <img src="${urlImagenFauna(especie)}" alt="${especie.nombre_comun}" loading="lazy" onerror="${atributoImagenRespaldo()}">
                 <div>
                     <div class="animal-card-top">
                         <h4>${especie.nombre_comun}</h4>
