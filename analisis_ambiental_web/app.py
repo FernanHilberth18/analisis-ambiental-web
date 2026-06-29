@@ -500,7 +500,7 @@ def smtp_configurado():
     return bool(os.getenv("SMTP_HOST") and os.getenv("SMTP_FROM"))
 
 
-def enviar_email(destinatario, asunto, contenido):
+def enviar_email(destinatario, asunto, contenido, html=None):
     if not smtp_configurado():
         return False
 
@@ -509,6 +509,9 @@ def enviar_email(destinatario, asunto, contenido):
     mensaje["To"] = destinatario
     mensaje["Subject"] = asunto
     mensaje.set_content(contenido)
+
+    if html:
+        mensaje.add_alternative(html, subtype="html")
 
     host = os.getenv("SMTP_HOST")
     port = int(os.getenv("SMTP_PORT", "587"))
@@ -538,6 +541,44 @@ def url_externa(endpoint, **valores):
         url = url.replace("http://", "https://", 1)
 
     return url
+
+
+def correo_recuperacion_html(nombre, enlace):
+    return f"""
+    <!doctype html>
+    <html lang="es">
+    <body style="margin:0;padding:0;background:#eef6f2;font-family:Arial,Helvetica,sans-serif;color:#20363d;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#eef6f2;padding:28px 12px;">
+            <tr>
+                <td align="center">
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border:1px solid #d7e5df;border-radius:8px;overflow:hidden;">
+                        <tr>
+                            <td style="background:#07384b;padding:22px 26px;color:#ffffff;">
+                                <div style="font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#bfe7dc;">Observatorio ambiental</div>
+                                <h1 style="margin:8px 0 0;font-size:24px;line-height:1.25;">Restablecer contraseña</h1>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding:26px;">
+                                <p style="margin:0 0 14px;font-size:16px;line-height:1.5;">Hola {nombre},</p>
+                                <p style="margin:0 0 22px;font-size:15px;line-height:1.6;color:#344a52;">Recibimos una solicitud para cambiar la contraseña de tu cuenta. Usa el botón de abajo para crear una nueva contraseña.</p>
+                                <p style="margin:0 0 24px;text-align:center;">
+                                    <a href="{enlace}" style="display:inline-block;background:#0f766e;color:#ffffff;text-decoration:none;font-weight:700;padding:13px 20px;border-radius:8px;">Restablecer contraseña</a>
+                                </p>
+                                <p style="margin:0 0 14px;font-size:14px;line-height:1.6;color:#53676b;">Este enlace vence en 30 minutos. Si no solicitaste este cambio, puedes ignorar este correo.</p>
+                                <div style="margin-top:22px;padding:14px;border-radius:8px;background:#f1f7f5;border:1px solid #d7e5df;">
+                                    <p style="margin:0 0 8px;font-size:12px;color:#53676b;">Si el botón no funciona, copia y pega este enlace en tu navegador:</p>
+                                    <p style="margin:0;font-size:12px;line-height:1.5;word-break:break-all;color:#075985;">{enlace}</p>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """
 
 
 def buscar_o_crear_usuario_oauth(proveedor, proveedor_id, nombre_base, email):
@@ -848,7 +889,13 @@ def solicitar_recuperacion_password():
     enviado = enviar_email(
         usuario["email"],
         "Recuperación de contraseña",
-        f"Hola {usuario['nombre']},\n\nUsa este enlace para cambiar tu contraseña:\n{enlace}\n\nEl enlace vence en 30 minutos."
+        (
+            f"Hola {usuario['nombre']},\n\n"
+            "Recibimos una solicitud para cambiar la contraseña de tu cuenta.\n"
+            f"Abre este enlace para crear una nueva contraseña:\n{enlace}\n\n"
+            "El enlace vence en 30 minutos. Si no solicitaste este cambio, puedes ignorar este correo."
+        ),
+        correo_recuperacion_html(usuario["nombre"], enlace)
     )
 
     guardar_mensaje(mensaje_generico if enviado else "No se pudo enviar el correo de recuperación.")
