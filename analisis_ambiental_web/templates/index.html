@@ -457,6 +457,39 @@
                     <button type="submit">Enviar a revisión</button>
                 </div>
             </form>
+
+            <div class="mis-comentarios" id="mis-comentarios">
+                <div class="mis-comentarios-header">
+                    <h3>Mis comentarios</h3>
+                    <p>Puedes editar o eliminar tus aportes. Si editas uno aprobado, volverá a revisión.</p>
+                </div>
+
+                {% if mis_comentarios %}
+                    <div class="mis-comentarios-lista">
+                        {% for comentario in mis_comentarios %}
+                            <article class="mi-comentario estado-{{ comentario.estado }}">
+                                <div class="mi-comentario-meta">
+                                    <strong>{{ comentario.estado }}</strong>
+                                    <span>{{ comentario.creado_en }}</span>
+                                </div>
+
+                                <form action="{{ url_for('editar_comentario', comentario_id=comentario.id) }}" method="post">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <textarea name="contenido" rows="3" maxlength="800" required>{{ comentario.contenido }}</textarea>
+                                    <button type="submit">Guardar cambios</button>
+                                </form>
+
+                                <form class="eliminar-comentario-form" action="{{ url_for('eliminar_comentario', comentario_id=comentario.id) }}" method="post">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button class="boton-secundario" type="submit">Eliminar</button>
+                                </form>
+                            </article>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="comentario-vacio">Aún no has enviado comentarios.</p>
+                {% endif %}
+            </div>
         {% else %}
             <div class="auth-grid">
                 <form class="auth-card" action="{{ url_for('iniciar_sesion') }}" method="post">

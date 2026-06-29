@@ -266,6 +266,7 @@ def preparar_tablas_comentarios():
     ejecutar_sql(f"ALTER TABLE {TABLA_COMENTARIOS} ALTER COLUMN estado SET DEFAULT 'pendiente';")
     ejecutar_sql(f"ALTER TABLE {TABLA_COMENTARIOS} ADD COLUMN IF NOT EXISTS revisado_en TIMESTAMPTZ;")
     ejecutar_sql(f"ALTER TABLE {TABLA_COMENTARIOS} ADD COLUMN IF NOT EXISTS revisado_por INTEGER REFERENCES {TABLA_USUARIOS}(id) ON DELETE SET NULL;")
+    ejecutar_sql(f"ALTER TABLE {TABLA_COMENTARIOS} ADD COLUMN IF NOT EXISTS editado_en TIMESTAMPTZ;")
 
     admin_user = os.getenv("ADMIN_USER", "").strip()
     admin_password = os.getenv("ADMIN_PASSWORD", "")
@@ -432,6 +433,24 @@ def comentarios_recientes():
     """)
 
 
+def comentarios_del_usuario(usuario_id):
+    if not usuario_id:
+        return []
+
+    return obtener_varias_filas(f"""
+        SELECT
+            id,
+            contenido,
+            estado,
+            creado_en,
+            editado_en
+        FROM {TABLA_COMENTARIOS}
+        WHERE usuario_id = :usuario_id
+        ORDER BY creado_en DESC
+        LIMIT 30;
+    """, {"usuario_id": usuario_id})
+
+
 def comentario_senales(contenido):
     texto = (contenido or "").lower()
     senales = []
@@ -504,12 +523,14 @@ def index():
     """
 
     datos = obtener_una_fila(sql)
+    usuario = usuario_actual()
 
     return render_template(
         "index.html",
         datos=datos,
-        usuario=usuario_actual(),
+        usuario=usuario,
         comentarios=comentarios_recientes(),
+        mis_comentarios=comentarios_del_usuario(usuario["id"]) if usuario else [],
         captcha_pregunta=captcha_nuevo(),
         recaptcha_site_key=recaptcha_site_key(),
         google_login_disponible=registrar_google_oauth(),
@@ -722,6 +743,80 @@ def crear_comentario():
     guardar_mensaje("Comentario enviado. Se publicará cuando el administrador lo apruebe.")
 
     return redirect(url_for("index"))
+
+
+@app.post("/comentarios/<int:comentario_id>/editar")
+def editar_comentario(comentario_id):
+    if rechazar_si_csrf_invalido():
+        return redirect(url_for("index", _anchor="mis-comentarios"))
+
+    usuario = usuario_actual()
+
+    if usuario is None:
+        guardar_mensaje("Inicia sesión para editar comentarios.")
+        return redirect(url_for("index", _anchor="comentarios"))
+
+    contenido = request.form.get("contenido", "").strip()
+
+    if len(contenido) < 5:
+        guardar_mensaje("El comentario debe tener al menos 5 caracteres.")
+        return redirect(url_for("index", _anchor="mis-comentarios"))
+
+    if len(contenido) > 800:
+        guardar_mensaje("El comentario no puede superar 800 caracteres.")
+        return redirect(url_for("index", _anchor="mis-comentarios"))
+
+    actualizado = ejecutar_sql(
+        f"""
+        UPDATE {TABLA_COMENTARIOS}
+        SET contenido = :contenido,
+            estado = 'pendiente',
+            editado_en = NOW(),
+            revisado_en = NULL,
+            revisado_por = NULL
+        WHERE id = :comentario_id
+        AND usuario_id = :usuario_id;
+        """,
+        {
+            "contenido": contenido,
+            "comentario_id": comentario_id,
+            "usuario_id": usuario["id"]
+        }
+    )
+
+    guardar_mensaje(
+        "Comentario actualizado y enviado de nuevo a revisión."
+        if actualizado else
+        "No se pudo editar ese comentario."
+    )
+    return redirect(url_for("index", _anchor="mis-comentarios"))
+
+
+@app.post("/comentarios/<int:comentario_id>/eliminar")
+def eliminar_comentario(comentario_id):
+    if rechazar_si_csrf_invalido():
+        return redirect(url_for("index", _anchor="mis-comentarios"))
+
+    usuario = usuario_actual()
+
+    if usuario is None:
+        guardar_mensaje("Inicia sesión para eliminar comentarios.")
+        return redirect(url_for("index", _anchor="comentarios"))
+
+    eliminado = ejecutar_sql(
+        f"""
+        DELETE FROM {TABLA_COMENTARIOS}
+        WHERE id = :comentario_id
+        AND usuario_id = :usuario_id;
+        """,
+        {
+            "comentario_id": comentario_id,
+            "usuario_id": usuario["id"]
+        }
+    )
+
+    guardar_mensaje("Comentario eliminado." if eliminado else "No se pudo eliminar ese comentario.")
+    return redirect(url_for("index", _anchor="mis-comentarios"))
 
 
 @app.get("/admin")
