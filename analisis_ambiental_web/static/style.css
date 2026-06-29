@@ -1423,6 +1423,201 @@ tbody tr:hover {
     line-height: 1.5;
 }
 
+.admin-link {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 14px;
+    border: 1px solid #9cc7bd;
+    border-radius: 8px;
+    color: #075985;
+    background: #eefaf7;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.admin-body {
+    background: #eef6f2;
+}
+
+.admin-shell {
+    width: min(1180px, calc(100% - 32px));
+    margin: 0 auto;
+    padding: 28px 0 42px;
+}
+
+.admin-header,
+.admin-panel {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fbfdf9;
+    box-shadow: var(--shadow);
+}
+
+.admin-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 18px;
+    align-items: flex-start;
+    padding: 22px;
+}
+
+.admin-header h1,
+.admin-panel h2 {
+    margin: 4px 0 6px;
+    color: #07384b;
+}
+
+.admin-header p,
+.admin-panel-title p {
+    margin: 0;
+    color: #53676b;
+}
+
+.admin-actions-top {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.admin-actions-top a {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    padding: 10px 14px;
+    border: 1px solid #b9cbc8;
+    border-radius: 8px;
+    color: #0f3d48;
+    background: #ffffff;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.admin-resumen {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin: 16px 0;
+}
+
+.admin-resumen article {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #ffffff;
+    padding: 16px;
+}
+
+.admin-resumen strong {
+    display: block;
+    color: #07384b;
+    font-size: 28px;
+    line-height: 1;
+}
+
+.admin-resumen span {
+    display: block;
+    margin-top: 6px;
+    color: #53676b;
+    font-weight: 800;
+}
+
+.admin-panel {
+    padding: 20px;
+}
+
+.admin-lista {
+    display: grid;
+    gap: 12px;
+    margin-top: 14px;
+}
+
+.admin-comentario {
+    border: 1px solid var(--line);
+    border-left: 5px solid #f59e0b;
+    border-radius: 8px;
+    background: #ffffff;
+    padding: 14px;
+}
+
+.admin-comentario.estado-aprobado {
+    border-left-color: #16a34a;
+}
+
+.admin-comentario.estado-rechazado {
+    border-left-color: #dc2626;
+}
+
+.admin-comentario-meta,
+.admin-comentario-acciones {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.admin-comentario-meta span {
+    color: #64777a;
+    font-size: 12px;
+}
+
+.estado-badge {
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: #fff7ed;
+    color: #9a3412 !important;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.estado-aprobado .estado-badge {
+    background: #dcfce7;
+    color: #166534 !important;
+}
+
+.estado-rechazado .estado-badge {
+    background: #fee2e2;
+    color: #991b1b !important;
+}
+
+.admin-comentario p {
+    margin: 12px 0;
+    color: #344a52;
+    line-height: 1.5;
+}
+
+.admin-senales {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: #f1f7f5;
+    color: #445c61;
+}
+
+.admin-comentario-acciones {
+    justify-content: flex-end;
+}
+
+.admin-comentario-acciones form {
+    margin: 0;
+}
+
+.boton-secundario {
+    background: #475569;
+}
+
+.boton-secundario:hover {
+    background: #334155;
+}
+
 .leaflet-control-layers {
     border: 1px solid rgba(215, 229, 223, 0.95) !important;
     border-radius: 8px !important;
@@ -1616,6 +1811,31 @@ footer p {
     }
 
     .fauna-aprendizaje {
+        grid-template-columns: 1fr;
+    }
+
+    .comentarios-section,
+    .admin-shell {
+        width: calc(100% - 20px);
+    }
+
+    .comentarios-header,
+    .admin-header {
+        flex-direction: column;
+    }
+
+    .admin-actions-top,
+    .admin-actions-top a,
+    .admin-actions-top button {
+        width: 100%;
+    }
+
+    .admin-resumen {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .auth-grid,
+    .captcha-grid {
         grid-template-columns: 1fr;
     }
 }

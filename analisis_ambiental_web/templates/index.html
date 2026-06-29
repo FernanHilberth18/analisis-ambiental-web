@@ -412,7 +412,11 @@
             </div>
 
             {% if usuario %}
+                {% if usuario.es_admin %}
+                    <a class="admin-link" href="{{ url_for('panel_admin') }}">Panel administrador</a>
+                {% endif %}
                 <form action="{{ url_for('cerrar_sesion') }}" method="post">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit">Cerrar sesión</button>
                 </form>
             {% endif %}
@@ -428,6 +432,7 @@
             </div>
 
             <form class="comentario-form" action="{{ url_for('crear_comentario') }}" method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <label>
                     Comentario
                     <textarea name="contenido" rows="4" maxlength="800" required placeholder="Escribe una observación sobre el humedal, fauna o presión urbana..."></textarea>
@@ -449,12 +454,13 @@
                             <input type="text" name="captcha" inputmode="numeric" required>
                         </label>
                     {% endif %}
-                    <button type="submit">Publicar comentario</button>
+                    <button type="submit">Enviar a revisión</button>
                 </div>
             </form>
         {% else %}
             <div class="auth-grid">
                 <form class="auth-card" action="{{ url_for('iniciar_sesion') }}" method="post">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <h3>Iniciar sesión</h3>
                     {% if google_login_disponible %}
                         <a class="google-login" href="{{ url_for('iniciar_sesion_google') }}">Entrar con Google</a>
@@ -466,6 +472,7 @@
                 </form>
 
                 <form class="auth-card" action="{{ url_for('registrar_usuario') }}" method="post">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <h3>Crear cuenta</h3>
                     {% if google_login_disponible %}
                         <p class="auth-nota">También puedes usar el botón de Google para crear tu acceso automáticamente.</p>

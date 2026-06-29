@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de administrador | Observatorio ambiental</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="admin-body">
+    <main class="admin-shell">
+        <header class="admin-header">
+            <div>
+                <span class="seccion-label">Seguridad</span>
+                <h1>Panel de administrador</h1>
+                <p>Revisa comentarios antes de publicarlos y controla contenido sospechoso.</p>
+            </div>
+            <div class="admin-actions-top">
+                <a href="{{ url_for('index') }}">Volver al observatorio</a>
+                <form action="{{ url_for('cerrar_sesion') }}" method="post">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit">Cerrar sesión</button>
+                </form>
+            </div>
+        </header>
+
+        {% if mensaje %}
+            <p class="comentario-mensaje">{{ mensaje }}</p>
+        {% endif %}
+
+        <section class="admin-resumen">
+            <article>
+                <strong>{{ resumen.pendientes or 0 }}</strong>
+                <span>Pendientes</span>
+            </article>
+            <article>
+                <strong>{{ resumen.aprobados or 0 }}</strong>
+                <span>Aprobados</span>
+            </article>
+            <article>
+                <strong>{{ resumen.rechazados or 0 }}</strong>
+                <span>Rechazados</span>
+            </article>
+            <article>
+                <strong>{{ resumen.total or 0 }}</strong>
+                <span>Total</span>
+            </article>
+        </section>
+
+        <section class="admin-panel">
+            <div class="admin-panel-title">
+                <h2>Moderación de comentarios</h2>
+                <p>Los comentarios nuevos no aparecen en la página pública hasta que sean aprobados.</p>
+            </div>
+
+            <div class="admin-lista">
+                {% if comentarios %}
+                    {% for comentario in comentarios %}
+                        <article class="admin-comentario estado-{{ comentario.estado }}">
+                            <div class="admin-comentario-meta">
+                                <div>
+                                    <strong>{{ comentario.usuario }}</strong>
+                                    <span>{{ comentario.creado_en }}</span>
+                                </div>
+                                <span class="estado-badge">{{ comentario.estado }}</span>
+                            </div>
+
+                            <p>{{ comentario.contenido }}</p>
+
+                            <div class="admin-senales">
+                                <strong>Señales:</strong> {{ comentario.senales }}
+                                {% if comentario.revisor %}
+                                    <span>Revisado por {{ comentario.revisor }}</span>
+                                {% endif %}
+                            </div>
+
+                            <div class="admin-comentario-acciones">
+                                <form action="{{ url_for('moderar_comentario', comentario_id=comentario.id, accion='aprobar') }}" method="post">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit">Aprobar</button>
+                                </form>
+                                <form action="{{ url_for('moderar_comentario', comentario_id=comentario.id, accion='rechazar') }}" method="post">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button class="boton-secundario" type="submit">Rechazar</button>
+                                </form>
+                            </div>
+                        </article>
+                    {% endfor %}
+                {% else %}
+                    <p class="comentario-vacio">No hay comentarios para revisar.</p>
+                {% endif %}
+            </div>
+        </section>
+    </main>
+</body>
+</html>

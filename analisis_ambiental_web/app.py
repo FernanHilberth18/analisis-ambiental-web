@@ -3,6 +3,7 @@ from db import ejecutar_sql, obtener_una_fila, obtener_varias_filas
 from flask import abort
 from flask import redirect, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
+from functools import wraps
 try:
     from authlib.integrations.flask_client import OAuth
     AUTHLIB_IMPORT_ERROR = ""
@@ -250,6 +251,7 @@ def preparar_tablas_comentarios():
     ejecutar_sql(f"ALTER TABLE {TABLA_USUARIOS} ADD COLUMN IF NOT EXISTS proveedor VARCHAR(20) NOT NULL DEFAULT 'local';")
     ejecutar_sql(f"ALTER TABLE {TABLA_USUARIOS} ADD COLUMN IF NOT EXISTS proveedor_id VARCHAR(120);")
     ejecutar_sql(f"ALTER TABLE {TABLA_USUARIOS} ADD COLUMN IF NOT EXISTS email VARCHAR(160);")
+    ejecutar_sql(f"ALTER TABLE {TABLA_USUARIOS} ADD COLUMN IF NOT EXISTS rol VARCHAR(20) NOT NULL DEFAULT 'usuario';")
     ejecutar_sql(f"CREATE UNIQUE INDEX IF NOT EXISTS idx_{TABLA_USUARIOS}_proveedor_id ON {TABLA_USUARIOS} (proveedor, proveedor_id) WHERE proveedor_id IS NOT NULL;")
 
     ejecutar_sql(f"""
@@ -257,10 +259,28 @@ def preparar_tablas_comentarios():
             id SERIAL PRIMARY KEY,
             usuario_id INTEGER NOT NULL REFERENCES {TABLA_USUARIOS}(id) ON DELETE CASCADE,
             contenido VARCHAR(800) NOT NULL,
-            estado VARCHAR(20) NOT NULL DEFAULT 'aprobado',
+            estado VARCHAR(20) NOT NULL DEFAULT 'pendiente',
             creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
     """)
+    ejecutar_sql(f"ALTER TABLE {TABLA_COMENTARIOS} ALTER COLUMN estado SET DEFAULT 'pendiente';")
+    ejecutar_sql(f"ALTER TABLE {TABLA_COMENTARIOS} ADD COLUMN IF NOT EXISTS revisado_en TIMESTAMPTZ;")
+    ejecutar_sql(f"ALTER TABLE {TABLA_COMENTARIOS} ADD COLUMN IF NOT EXISTS revisado_por INTEGER REFERENCES {TABLA_USUARIOS}(id) ON DELETE SET NULL;")
+
+    admin_user = os.getenv("ADMIN_USER", "").strip()
+    admin_password = os.getenv("ADMIN_PASSWORD", "")
+
+    if admin_user and admin_password:
+        ejecutar_sql(
+            f"""
+            INSERT INTO {TABLA_USUARIOS} (nombre, password_hash, rol)
+            VALUES (:nombre, :password_hash, 'admin')
+            ON CONFLICT (nombre) DO UPDATE SET
+                password_hash = EXCLUDED.password_hash,
+                rol = 'admin';
+            """,
+            {"nombre": admin_user, "password_hash": generate_password_hash(admin_password)}
+        )
 
     tablas_comentarios_listas = True
 
@@ -271,8 +291,27 @@ def usuario_actual():
 
     return {
         "id": session["usuario_id"],
-        "nombre": session.get("usuario_nombre", "Usuario")
+        "nombre": session.get("usuario_nombre", "Usuario"),
+        "rol": session.get("usuario_rol", "usuario"),
+        "es_admin": session.get("usuario_rol") == "admin"
     }
+
+
+def requiere_admin(funcion):
+    @wraps(funcion)
+    def wrapper(*args, **kwargs):
+        usuario = usuario_actual()
+
+        if usuario is None:
+            guardar_mensaje("Inicia sesión como administrador.")
+            return redirect(url_for("index", _anchor="comentarios"))
+
+        if not usuario["es_admin"]:
+            abort(403)
+
+        return funcion(*args, **kwargs)
+
+    return wrapper
 
 
 def guardar_mensaje(texto):
@@ -281,6 +320,33 @@ def guardar_mensaje(texto):
 
 def mensaje_flash():
     return session.pop("mensaje", None)
+
+
+def csrf_token():
+    token = session.get("csrf_token")
+
+    if not token:
+        token = os.urandom(24).hex()
+        session["csrf_token"] = token
+
+    return token
+
+
+app.jinja_env.globals["csrf_token"] = csrf_token
+
+
+def csrf_valido():
+    token_formulario = request.form.get("csrf_token", "")
+    token_sesion = session.get("csrf_token", "")
+    return bool(token_formulario and token_sesion and token_formulario == token_sesion)
+
+
+def rechazar_si_csrf_invalido():
+    if not csrf_valido():
+        guardar_mensaje("Solicitud rechazada por seguridad. Recarga la página e intenta otra vez.")
+        return True
+
+    return False
 
 
 def captcha_nuevo():
@@ -366,6 +432,65 @@ def comentarios_recientes():
     """)
 
 
+def comentario_senales(contenido):
+    texto = (contenido or "").lower()
+    senales = []
+
+    if "http://" in texto or "https://" in texto or "www." in texto:
+        senales.append("contiene enlace")
+
+    if re.search(r"\b(select|insert|update|delete|drop|union|script)\b", texto):
+        senales.append("parece contener comandos o codigo")
+
+    if len(re.findall(r"[!?]", texto)) >= 5:
+        senales.append("uso repetido de signos")
+
+    if len(contenido or "") > 500:
+        senales.append("comentario largo")
+
+    return ", ".join(senales) if senales else "sin alertas"
+
+
+def comentarios_admin():
+    comentarios = obtener_varias_filas(f"""
+        SELECT
+            c.id,
+            c.contenido,
+            c.estado,
+            c.creado_en,
+            c.revisado_en,
+            u.nombre AS usuario,
+            COALESCE(revisor.nombre, '') AS revisor
+        FROM {TABLA_COMENTARIOS} c
+        JOIN {TABLA_USUARIOS} u ON u.id = c.usuario_id
+        LEFT JOIN {TABLA_USUARIOS} revisor ON revisor.id = c.revisado_por
+        ORDER BY
+            CASE c.estado
+                WHEN 'pendiente' THEN 0
+                WHEN 'aprobado' THEN 1
+                ELSE 2
+            END,
+            c.creado_en DESC
+        LIMIT 80;
+    """)
+
+    for comentario in comentarios:
+        comentario["senales"] = comentario_senales(comentario.get("contenido", ""))
+
+    return comentarios
+
+
+def resumen_admin():
+    return obtener_una_fila(f"""
+        SELECT
+            COUNT(*) FILTER (WHERE estado = 'pendiente') AS pendientes,
+            COUNT(*) FILTER (WHERE estado = 'aprobado') AS aprobados,
+            COUNT(*) FILTER (WHERE estado = 'rechazado') AS rechazados,
+            COUNT(*) AS total
+        FROM {TABLA_COMENTARIOS};
+    """)
+
+
 # =========================
 # RUTA PRINCIPAL
 # =========================
@@ -394,6 +519,9 @@ def index():
 
 @app.post("/registro")
 def registrar_usuario():
+    if rechazar_si_csrf_invalido():
+        return redirect(url_for("index", _anchor="comentarios"))
+
     if request.form.get("sitio_web", "").strip():
         guardar_mensaje("No se pudo procesar el registro.")
         return redirect(url_for("index"))
@@ -423,11 +551,12 @@ def registrar_usuario():
         {"nombre": nombre, "password_hash": generate_password_hash(password)}
     )
     usuario = obtener_una_fila(
-        f"SELECT id, nombre FROM {TABLA_USUARIOS} WHERE LOWER(nombre) = LOWER(:nombre);",
+        f"SELECT id, nombre, rol FROM {TABLA_USUARIOS} WHERE LOWER(nombre) = LOWER(:nombre);",
         {"nombre": nombre}
     )
     session["usuario_id"] = usuario["id"]
     session["usuario_nombre"] = usuario["nombre"]
+    session["usuario_rol"] = usuario["rol"]
     guardar_mensaje("Registro completado. Ya puedes comentar.")
 
     return redirect(url_for("index"))
@@ -435,10 +564,13 @@ def registrar_usuario():
 
 @app.post("/login")
 def iniciar_sesion():
+    if rechazar_si_csrf_invalido():
+        return redirect(url_for("index", _anchor="comentarios"))
+
     nombre = request.form.get("nombre", "").strip()
     password = request.form.get("password", "")
     usuario = obtener_una_fila(
-        f"SELECT id, nombre, password_hash FROM {TABLA_USUARIOS} WHERE LOWER(nombre) = LOWER(:nombre);",
+        f"SELECT id, nombre, password_hash, rol FROM {TABLA_USUARIOS} WHERE LOWER(nombre) = LOWER(:nombre);",
         {"nombre": nombre}
     )
 
@@ -448,6 +580,7 @@ def iniciar_sesion():
 
     session["usuario_id"] = usuario["id"]
     session["usuario_nombre"] = usuario["nombre"]
+    session["usuario_rol"] = usuario["rol"]
     guardar_mensaje("Sesión iniciada.")
 
     return redirect(url_for("index"))
@@ -491,7 +624,7 @@ def google_callback():
 
     usuario = obtener_una_fila(
         f"""
-        SELECT id, nombre
+        SELECT id, nombre, rol
         FROM {TABLA_USUARIOS}
         WHERE proveedor = 'google'
         AND proveedor_id = :proveedor_id;
@@ -517,7 +650,7 @@ def google_callback():
         )
         usuario = obtener_una_fila(
             f"""
-            SELECT id, nombre
+            SELECT id, nombre, rol
             FROM {TABLA_USUARIOS}
             WHERE proveedor = 'google'
             AND proveedor_id = :proveedor_id;
@@ -527,6 +660,7 @@ def google_callback():
 
     session["usuario_id"] = usuario["id"]
     session["usuario_nombre"] = usuario["nombre"]
+    session["usuario_rol"] = usuario["rol"]
     guardar_mensaje("Sesión iniciada con Google.")
 
     return redirect(url_for("index"))
@@ -534,6 +668,9 @@ def google_callback():
 
 @app.post("/logout")
 def cerrar_sesion():
+    if rechazar_si_csrf_invalido():
+        return redirect(url_for("index", _anchor="comentarios"))
+
     session.clear()
     guardar_mensaje("Sesión cerrada.")
     return redirect(url_for("index"))
@@ -541,6 +678,9 @@ def cerrar_sesion():
 
 @app.post("/comentarios")
 def crear_comentario():
+    if rechazar_si_csrf_invalido():
+        return redirect(url_for("index", _anchor="comentarios"))
+
     usuario = usuario_actual()
 
     if usuario is None:
@@ -574,14 +714,56 @@ def crear_comentario():
 
     ejecutar_sql(
         f"""
-        INSERT INTO {TABLA_COMENTARIOS} (usuario_id, contenido)
-        VALUES (:usuario_id, :contenido);
+        INSERT INTO {TABLA_COMENTARIOS} (usuario_id, contenido, estado)
+        VALUES (:usuario_id, :contenido, 'pendiente');
         """,
         {"usuario_id": usuario["id"], "contenido": contenido}
     )
-    guardar_mensaje("Comentario publicado.")
+    guardar_mensaje("Comentario enviado. Se publicará cuando el administrador lo apruebe.")
 
     return redirect(url_for("index"))
+
+
+@app.get("/admin")
+@requiere_admin
+def panel_admin():
+    return render_template(
+        "admin.html",
+        usuario=usuario_actual(),
+        comentarios=comentarios_admin(),
+        resumen=resumen_admin(),
+        mensaje=mensaje_flash()
+    )
+
+
+@app.post("/admin/comentarios/<int:comentario_id>/<accion>")
+@requiere_admin
+def moderar_comentario(comentario_id, accion):
+    if rechazar_si_csrf_invalido():
+        return redirect(url_for("panel_admin"))
+
+    if accion not in {"aprobar", "rechazar"}:
+        abort(404)
+
+    nuevo_estado = "aprobado" if accion == "aprobar" else "rechazado"
+    administrador = usuario_actual()
+    actualizado = ejecutar_sql(
+        f"""
+        UPDATE {TABLA_COMENTARIOS}
+        SET estado = :estado,
+            revisado_en = NOW(),
+            revisado_por = :admin_id
+        WHERE id = :comentario_id;
+        """,
+        {
+            "estado": nuevo_estado,
+            "admin_id": administrador["id"],
+            "comentario_id": comentario_id
+        }
+    )
+
+    guardar_mensaje("Comentario actualizado." if actualizado else "No se pudo actualizar el comentario.")
+    return redirect(url_for("panel_admin"))
 
 
 # =========================
@@ -1203,7 +1385,8 @@ def api_diagnostico():
             "google_client_secret_configurado": bool(os.getenv("GOOGLE_CLIENT_SECRET")),
             "google_login_disponible": registrar_google_oauth(),
             "recaptcha_site_key_configurado": bool(recaptcha_site_key()),
-            "recaptcha_secret_key_configurado": bool(recaptcha_secret_key())
+            "recaptcha_secret_key_configurado": bool(recaptcha_secret_key()),
+            "admin_configurado": bool(os.getenv("ADMIN_USER") and os.getenv("ADMIN_PASSWORD"))
         },
         "columnas_humedal": obtener_varias_filas(f"""
             SELECT column_name, data_type
