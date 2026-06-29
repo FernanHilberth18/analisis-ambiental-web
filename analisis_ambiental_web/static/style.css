@@ -1433,6 +1433,45 @@ tbody tr:hover {
     font: inherit;
 }
 
+.password-field {
+    position: relative;
+    display: block;
+}
+
+.password-field input {
+    padding-right: 46px;
+}
+
+.password-toggle {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    width: 34px;
+    height: 34px;
+    min-height: 34px;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: #53676b;
+    padding: 0;
+}
+
+.password-toggle:hover {
+    background: #eef6f2;
+    box-shadow: none;
+    transform: translateY(-50%);
+}
+
+.password-toggle svg {
+    width: 20px;
+    height: 20px;
+    fill: currentColor;
+}
+
 .campo-oculto {
     position: absolute;
     left: -10000px;
