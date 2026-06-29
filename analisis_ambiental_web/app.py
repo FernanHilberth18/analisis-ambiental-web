@@ -337,7 +337,7 @@ def preparar_tablas_comentarios():
     ejecutar_sql(f"CREATE INDEX IF NOT EXISTS idx_{TABLA_RECUPERACION}_token ON {TABLA_RECUPERACION} (token_hash);")
 
     admin_user = os.getenv("ADMIN_USER", "").strip()
-    admin_password = os.getenv("ADMIN_PASSWORD", "")
+    admin_password = os.getenv("ADMIN_PASSWORD", "").strip()
 
     if admin_user and admin_password:
         ejecutar_sql(
@@ -678,6 +678,30 @@ def resumen_admin():
             COUNT(*) AS total
         FROM {TABLA_COMENTARIOS};
     """)
+
+
+def diagnostico_admin():
+    admin_user = os.getenv("ADMIN_USER", "").strip()
+
+    if not admin_user:
+        return {
+            "admin_usuario_existe": False,
+            "admin_rol_correcto": False
+        }
+
+    usuario = obtener_una_fila(
+        f"""
+        SELECT rol
+        FROM {TABLA_USUARIOS}
+        WHERE LOWER(nombre) = LOWER(:nombre);
+        """,
+        {"nombre": admin_user}
+    )
+
+    return {
+        "admin_usuario_existe": bool(usuario),
+        "admin_rol_correcto": usuario.get("rol") == "admin" if usuario else False
+    }
 
 
 # =========================
@@ -1911,22 +1935,25 @@ def api_fauna_educativa():
 
 @app.route("/api/diagnostico")
 def api_diagnostico():
+    seguridad = {
+        "authlib_disponible": OAuth is not None,
+        "authlib_error": AUTHLIB_IMPORT_ERROR,
+        "google_client_id_configurado": bool(os.getenv("GOOGLE_CLIENT_ID")),
+        "google_client_secret_configurado": bool(os.getenv("GOOGLE_CLIENT_SECRET")),
+        "google_login_disponible": registrar_google_oauth(),
+        "github_login_disponible": registrar_github_oauth(),
+        "microsoft_login_disponible": registrar_microsoft_oauth(),
+        "smtp_recuperacion_configurado": smtp_configurado(),
+        "recaptcha_site_key_configurado": bool(recaptcha_site_key()),
+        "recaptcha_secret_key_configurado": bool(recaptcha_secret_key()),
+        "admin_configurado": bool(os.getenv("ADMIN_USER") and os.getenv("ADMIN_PASSWORD"))
+    }
+    seguridad.update(diagnostico_admin())
+
     datos = {
         "tabla_humedal": TABLA_HUMEDAL,
         "tabla_edificios": TABLA_EDIFICIOS,
-        "seguridad": {
-            "authlib_disponible": OAuth is not None,
-            "authlib_error": AUTHLIB_IMPORT_ERROR,
-            "google_client_id_configurado": bool(os.getenv("GOOGLE_CLIENT_ID")),
-            "google_client_secret_configurado": bool(os.getenv("GOOGLE_CLIENT_SECRET")),
-            "google_login_disponible": registrar_google_oauth(),
-            "github_login_disponible": registrar_github_oauth(),
-            "microsoft_login_disponible": registrar_microsoft_oauth(),
-            "smtp_recuperacion_configurado": smtp_configurado(),
-            "recaptcha_site_key_configurado": bool(recaptcha_site_key()),
-            "recaptcha_secret_key_configurado": bool(recaptcha_secret_key()),
-            "admin_configurado": bool(os.getenv("ADMIN_USER") and os.getenv("ADMIN_PASSWORD"))
-        },
+        "seguridad": seguridad,
         "columnas_humedal": obtener_varias_filas(f"""
             SELECT column_name, data_type
             FROM information_schema.columns
