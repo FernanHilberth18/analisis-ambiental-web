@@ -15,8 +15,13 @@ import math
 import json
 import random
 import re
+import secrets
+import hashlib
+import smtplib
 import urllib.parse
 import urllib.request
+from datetime import datetime, timedelta, timezone
+from email.message import EmailMessage
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 1 * 1024 * 1024
@@ -25,10 +30,20 @@ app.config["JSON_SORT_KEYS"] = False
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "clave-local-de-desarrollo")
 oauth = OAuth(app) if OAuth is not None else None
 google_oauth_registrado = False
+github_oauth_registrado = False
+microsoft_oauth_registrado = False
 
 
 def google_oauth_configurado():
     return bool(oauth and os.getenv("GOOGLE_CLIENT_ID") and os.getenv("GOOGLE_CLIENT_SECRET"))
+
+
+def github_oauth_configurado():
+    return bool(oauth and os.getenv("GITHUB_CLIENT_ID") and os.getenv("GITHUB_CLIENT_SECRET"))
+
+
+def microsoft_oauth_configurado():
+    return bool(oauth and os.getenv("MICROSOFT_CLIENT_ID") and os.getenv("MICROSOFT_CLIENT_SECRET"))
 
 
 def registrar_google_oauth():
@@ -48,7 +63,46 @@ def registrar_google_oauth():
     return google_oauth_registrado
 
 
+def registrar_github_oauth():
+    global github_oauth_registrado
+
+    if github_oauth_registrado or not github_oauth_configurado():
+        return github_oauth_registrado
+
+    oauth.register(
+        name="github",
+        client_id=os.getenv("GITHUB_CLIENT_ID"),
+        client_secret=os.getenv("GITHUB_CLIENT_SECRET"),
+        authorize_url="https://github.com/login/oauth/authorize",
+        access_token_url="https://github.com/login/oauth/access_token",
+        api_base_url="https://api.github.com/",
+        client_kwargs={"scope": "read:user user:email"}
+    )
+    github_oauth_registrado = True
+    return github_oauth_registrado
+
+
+def registrar_microsoft_oauth():
+    global microsoft_oauth_registrado
+
+    if microsoft_oauth_registrado or not microsoft_oauth_configurado():
+        return microsoft_oauth_registrado
+
+    tenant = os.getenv("MICROSOFT_TENANT_ID", "common")
+    oauth.register(
+        name="microsoft",
+        client_id=os.getenv("MICROSOFT_CLIENT_ID"),
+        client_secret=os.getenv("MICROSOFT_CLIENT_SECRET"),
+        server_metadata_url=f"https://login.microsoftonline.com/{tenant}/v2.0/.well-known/openid-configuration",
+        client_kwargs={"scope": "openid email profile"}
+    )
+    microsoft_oauth_registrado = True
+    return microsoft_oauth_registrado
+
+
 registrar_google_oauth()
+registrar_github_oauth()
+registrar_microsoft_oauth()
 
 
 @app.after_request
@@ -84,6 +138,7 @@ TABLA_HUMEDAL = "humedal_bahia_panama"
 TABLA_EDIFICIOS = "edificios_humedal_1km"
 TABLA_USUARIOS = "usuarios_comentarios"
 TABLA_COMENTARIOS = "comentarios_humedal"
+TABLA_RECUPERACION = "recuperacion_password"
 TABLAS_PERMITIDAS = {TABLA_HUMEDAL, TABLA_EDIFICIOS}
 ZONAS_VALIDAS = {
     "Fangales intermareales",
@@ -253,6 +308,7 @@ def preparar_tablas_comentarios():
     ejecutar_sql(f"ALTER TABLE {TABLA_USUARIOS} ADD COLUMN IF NOT EXISTS email VARCHAR(160);")
     ejecutar_sql(f"ALTER TABLE {TABLA_USUARIOS} ADD COLUMN IF NOT EXISTS rol VARCHAR(20) NOT NULL DEFAULT 'usuario';")
     ejecutar_sql(f"CREATE UNIQUE INDEX IF NOT EXISTS idx_{TABLA_USUARIOS}_proveedor_id ON {TABLA_USUARIOS} (proveedor, proveedor_id) WHERE proveedor_id IS NOT NULL;")
+    ejecutar_sql(f"CREATE INDEX IF NOT EXISTS idx_{TABLA_USUARIOS}_email_local ON {TABLA_USUARIOS} (LOWER(email)) WHERE proveedor = 'local' AND email IS NOT NULL;")
 
     ejecutar_sql(f"""
         CREATE TABLE IF NOT EXISTS {TABLA_COMENTARIOS} (
@@ -267,6 +323,18 @@ def preparar_tablas_comentarios():
     ejecutar_sql(f"ALTER TABLE {TABLA_COMENTARIOS} ADD COLUMN IF NOT EXISTS revisado_en TIMESTAMPTZ;")
     ejecutar_sql(f"ALTER TABLE {TABLA_COMENTARIOS} ADD COLUMN IF NOT EXISTS revisado_por INTEGER REFERENCES {TABLA_USUARIOS}(id) ON DELETE SET NULL;")
     ejecutar_sql(f"ALTER TABLE {TABLA_COMENTARIOS} ADD COLUMN IF NOT EXISTS editado_en TIMESTAMPTZ;")
+
+    ejecutar_sql(f"""
+        CREATE TABLE IF NOT EXISTS {TABLA_RECUPERACION} (
+            id SERIAL PRIMARY KEY,
+            usuario_id INTEGER NOT NULL REFERENCES {TABLA_USUARIOS}(id) ON DELETE CASCADE,
+            token_hash VARCHAR(64) UNIQUE NOT NULL,
+            usado BOOLEAN NOT NULL DEFAULT FALSE,
+            expira_en TIMESTAMPTZ NOT NULL,
+            creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+    """)
+    ejecutar_sql(f"CREATE INDEX IF NOT EXISTS idx_{TABLA_RECUPERACION}_token ON {TABLA_RECUPERACION} (token_hash);")
 
     admin_user = os.getenv("ADMIN_USER", "").strip()
     admin_password = os.getenv("ADMIN_PASSWORD", "")
@@ -404,9 +472,13 @@ def nombre_usuario_valido(nombre):
     return re.fullmatch(r"[A-Za-zÁÉÍÓÚáéíóúÑñ0-9_ ]{3,40}", nombre or "") is not None
 
 
-def nombre_unico_google(nombre_base):
-    limpio = re.sub(r"[^A-Za-zÁÉÍÓÚáéíóúÑñ0-9_ ]", "", nombre_base or "Usuario Google").strip()
-    limpio = limpio[:32] or "Usuario Google"
+def email_valido(email):
+    return re.fullmatch(r"[^@\s]{3,80}@[^@\s]{2,80}\.[^@\s]{2,20}", email or "") is not None
+
+
+def nombre_unico(nombre_base):
+    limpio = re.sub(r"[^A-Za-zÁÉÍÓÚáéíóúÑñ0-9_ ]", "", nombre_base or "Usuario").strip()
+    limpio = limpio[:32] or "Usuario"
     candidato = limpio
     contador = 2
 
@@ -418,6 +490,103 @@ def nombre_unico_google(nombre_base):
         contador += 1
 
     return candidato
+
+
+def token_hash(token):
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def smtp_configurado():
+    return bool(os.getenv("SMTP_HOST") and os.getenv("SMTP_FROM"))
+
+
+def enviar_email(destinatario, asunto, contenido):
+    if not smtp_configurado():
+        return False
+
+    mensaje = EmailMessage()
+    mensaje["From"] = os.getenv("SMTP_FROM")
+    mensaje["To"] = destinatario
+    mensaje["Subject"] = asunto
+    mensaje.set_content(contenido)
+
+    host = os.getenv("SMTP_HOST")
+    port = int(os.getenv("SMTP_PORT", "587"))
+    usuario = os.getenv("SMTP_USER", "")
+    password = os.getenv("SMTP_PASSWORD", "")
+    usar_tls = os.getenv("SMTP_TLS", "true").lower() == "true"
+
+    try:
+        with smtplib.SMTP(host, port, timeout=10) as servidor:
+            if usar_tls:
+                servidor.starttls()
+
+            if usuario and password:
+                servidor.login(usuario, password)
+
+            servidor.send_message(mensaje)
+        return True
+    except Exception as error:
+        print("Error enviando correo:", error)
+        return False
+
+
+def url_externa(endpoint, **valores):
+    url = url_for(endpoint, _external=True, **valores)
+
+    if os.getenv("FORCE_HTTPS", "").lower() == "true":
+        url = url.replace("http://", "https://", 1)
+
+    return url
+
+
+def buscar_o_crear_usuario_oauth(proveedor, proveedor_id, nombre_base, email):
+    usuario = obtener_una_fila(
+        f"""
+        SELECT id, nombre, rol, proveedor
+        FROM {TABLA_USUARIOS}
+        WHERE proveedor = :proveedor
+        AND proveedor_id = :proveedor_id;
+        """,
+        {"proveedor": proveedor, "proveedor_id": proveedor_id}
+    )
+
+    if usuario:
+        return usuario
+
+    nombre = nombre_unico(nombre_base or (email.split("@")[0] if email else f"Usuario {proveedor}"))
+    ejecutar_sql(
+        f"""
+        INSERT INTO {TABLA_USUARIOS}
+            (nombre, password_hash, proveedor, proveedor_id, email)
+        VALUES
+            (:nombre, :password_hash, :proveedor, :proveedor_id, :email);
+        """,
+        {
+            "nombre": nombre,
+            "password_hash": generate_password_hash(os.urandom(24).hex()),
+            "proveedor": proveedor,
+            "proveedor_id": proveedor_id,
+            "email": email
+        }
+    )
+    return obtener_una_fila(
+        f"""
+        SELECT id, nombre, rol, proveedor
+        FROM {TABLA_USUARIOS}
+        WHERE proveedor = :proveedor
+        AND proveedor_id = :proveedor_id;
+        """,
+        {"proveedor": proveedor, "proveedor_id": proveedor_id}
+    )
+
+
+def iniciar_sesion_usuario(usuario, mensaje):
+    session["usuario_id"] = usuario["id"]
+    session["usuario_nombre"] = usuario["nombre"]
+    session["usuario_rol"] = usuario["rol"]
+    session["usuario_proveedor"] = usuario["proveedor"]
+    guardar_mensaje(mensaje)
 
 
 def comentarios_recientes():
@@ -535,6 +704,9 @@ def index():
         captcha_pregunta=captcha_nuevo(),
         recaptcha_site_key=recaptcha_site_key(),
         google_login_disponible=registrar_google_oauth(),
+        github_login_disponible=registrar_github_oauth(),
+        microsoft_login_disponible=registrar_microsoft_oauth(),
+        recuperacion_disponible=smtp_configurado(),
         mensaje=mensaje_flash()
     )
 
@@ -549,11 +721,16 @@ def registrar_usuario():
         return redirect(url_for("index"))
 
     nombre = request.form.get("nombre", "").strip()
+    email = request.form.get("email", "").strip().lower()
     password = request.form.get("password", "")
 
     if not nombre_usuario_valido(nombre):
         guardar_mensaje("El nombre debe tener entre 3 y 40 caracteres.")
         return redirect(url_for("index"))
+
+    if not email_valido(email):
+        guardar_mensaje("Escribe un correo válido para recuperar tu cuenta.")
+        return redirect(url_for("index", _anchor="comentarios"))
 
     if len(password) < 6:
         guardar_mensaje("La contraseña debe tener al menos 6 caracteres.")
@@ -569,18 +746,14 @@ def registrar_usuario():
         return redirect(url_for("index"))
 
     ejecutar_sql(
-        f"INSERT INTO {TABLA_USUARIOS} (nombre, password_hash) VALUES (:nombre, :password_hash);",
-        {"nombre": nombre, "password_hash": generate_password_hash(password)}
+        f"INSERT INTO {TABLA_USUARIOS} (nombre, email, password_hash) VALUES (:nombre, :email, :password_hash);",
+        {"nombre": nombre, "email": email, "password_hash": generate_password_hash(password)}
     )
     usuario = obtener_una_fila(
         f"SELECT id, nombre, rol, proveedor FROM {TABLA_USUARIOS} WHERE LOWER(nombre) = LOWER(:nombre);",
         {"nombre": nombre}
     )
-    session["usuario_id"] = usuario["id"]
-    session["usuario_nombre"] = usuario["nombre"]
-    session["usuario_rol"] = usuario["rol"]
-    session["usuario_proveedor"] = usuario["proveedor"]
-    guardar_mensaje("Registro completado. Ya puedes comentar.")
+    iniciar_sesion_usuario(usuario, "Registro completado. Ya puedes comentar.")
 
     return redirect(url_for("index"))
 
@@ -601,13 +774,124 @@ def iniciar_sesion():
         guardar_mensaje("Usuario o contraseña incorrectos.")
         return redirect(url_for("index"))
 
-    session["usuario_id"] = usuario["id"]
-    session["usuario_nombre"] = usuario["nombre"]
-    session["usuario_rol"] = usuario["rol"]
-    session["usuario_proveedor"] = usuario["proveedor"]
-    guardar_mensaje("Sesión iniciada.")
+    iniciar_sesion_usuario(usuario, "Sesión iniciada.")
 
     return redirect(url_for("index"))
+
+
+@app.post("/recuperar-password")
+def solicitar_recuperacion_password():
+    if rechazar_si_csrf_invalido():
+        return redirect(url_for("index", _anchor="comentarios"))
+
+    email = request.form.get("email", "").strip().lower()
+
+    if not email_valido(email):
+        guardar_mensaje("Escribe un correo válido.")
+        return redirect(url_for("index", _anchor="comentarios"))
+
+    usuario = obtener_una_fila(
+        f"""
+        SELECT id, nombre, email
+        FROM {TABLA_USUARIOS}
+        WHERE proveedor = 'local'
+        AND LOWER(email) = LOWER(:email);
+        """,
+        {"email": email}
+    )
+
+    mensaje_generico = "Si ese correo existe, enviaremos un enlace de recuperación."
+
+    if not usuario:
+        guardar_mensaje(mensaje_generico)
+        return redirect(url_for("index", _anchor="comentarios"))
+
+    if not smtp_configurado():
+        guardar_mensaje("La recuperación por correo todavía no está configurada en el servidor.")
+        return redirect(url_for("index", _anchor="comentarios"))
+
+    token = secrets.token_urlsafe(32)
+    expira = datetime.now(timezone.utc) + timedelta(minutes=30)
+    ejecutar_sql(
+        f"""
+        INSERT INTO {TABLA_RECUPERACION} (usuario_id, token_hash, expira_en)
+        VALUES (:usuario_id, :token_hash, :expira_en);
+        """,
+        {"usuario_id": usuario["id"], "token_hash": token_hash(token), "expira_en": expira}
+    )
+
+    enlace = url_externa("formulario_restablecer_password", token=token)
+    enviado = enviar_email(
+        usuario["email"],
+        "Recuperación de contraseña",
+        f"Hola {usuario['nombre']},\n\nUsa este enlace para cambiar tu contraseña:\n{enlace}\n\nEl enlace vence en 30 minutos."
+    )
+
+    guardar_mensaje(mensaje_generico if enviado else "No se pudo enviar el correo de recuperación.")
+    return redirect(url_for("index", _anchor="comentarios"))
+
+
+@app.get("/recuperar-password/<token>")
+def formulario_restablecer_password(token):
+    recuperacion = obtener_una_fila(
+        f"""
+        SELECT id
+        FROM {TABLA_RECUPERACION}
+        WHERE token_hash = :token_hash
+        AND usado = FALSE
+        AND expira_en > NOW();
+        """,
+        {"token_hash": token_hash(token)}
+    )
+
+    if not recuperacion:
+        guardar_mensaje("El enlace de recuperación no es válido o ya venció.")
+        return redirect(url_for("index", _anchor="comentarios"))
+
+    return render_template("reset_password.html", token=token, mensaje=mensaje_flash())
+
+
+@app.post("/recuperar-password/<token>")
+def restablecer_password(token):
+    if rechazar_si_csrf_invalido():
+        return redirect(url_for("formulario_restablecer_password", token=token))
+
+    password = request.form.get("password", "")
+    confirmacion = request.form.get("password_confirmacion", "")
+
+    if len(password) < 8:
+        guardar_mensaje("La nueva contraseña debe tener al menos 8 caracteres.")
+        return redirect(url_for("formulario_restablecer_password", token=token))
+
+    if password != confirmacion:
+        guardar_mensaje("La confirmación de contraseña no coincide.")
+        return redirect(url_for("formulario_restablecer_password", token=token))
+
+    recuperacion = obtener_una_fila(
+        f"""
+        SELECT id, usuario_id
+        FROM {TABLA_RECUPERACION}
+        WHERE token_hash = :token_hash
+        AND usado = FALSE
+        AND expira_en > NOW();
+        """,
+        {"token_hash": token_hash(token)}
+    )
+
+    if not recuperacion:
+        guardar_mensaje("El enlace de recuperación no es válido o ya venció.")
+        return redirect(url_for("index", _anchor="comentarios"))
+
+    ejecutar_sql(
+        f"UPDATE {TABLA_USUARIOS} SET password_hash = :password_hash WHERE id = :usuario_id AND proveedor = 'local';",
+        {"password_hash": generate_password_hash(password), "usuario_id": recuperacion["usuario_id"]}
+    )
+    ejecutar_sql(
+        f"UPDATE {TABLA_RECUPERACION} SET usado = TRUE WHERE id = :recuperacion_id;",
+        {"recuperacion_id": recuperacion["id"]}
+    )
+    guardar_mensaje("Contraseña restablecida. Ya puedes iniciar sesión.")
+    return redirect(url_for("index", _anchor="comentarios"))
 
 
 @app.get("/login/google")
@@ -616,12 +900,7 @@ def iniciar_sesion_google():
         guardar_mensaje("El inicio con Google todavía no está configurado.")
         return redirect(url_for("index"))
 
-    redirect_uri = url_for("google_callback", _external=True)
-
-    if os.getenv("FORCE_HTTPS", "").lower() == "true":
-        redirect_uri = redirect_uri.replace("http://", "https://", 1)
-
-    return oauth.google.authorize_redirect(redirect_uri)
+    return oauth.google.authorize_redirect(url_externa("google_callback"))
 
 
 @app.get("/auth/google")
@@ -646,48 +925,86 @@ def google_callback():
         guardar_mensaje("Google no devolvió un identificador válido.")
         return redirect(url_for("index"))
 
-    usuario = obtener_una_fila(
-        f"""
-        SELECT id, nombre, rol, proveedor
-        FROM {TABLA_USUARIOS}
-        WHERE proveedor = 'google'
-        AND proveedor_id = :proveedor_id;
-        """,
-        {"proveedor_id": proveedor_id}
-    )
+    usuario = buscar_o_crear_usuario_oauth("google", proveedor_id, nombre, email)
+    iniciar_sesion_usuario(usuario, "Sesión iniciada con Google.")
 
-    if not usuario:
-        nombre = nombre_unico_google(nombre)
-        ejecutar_sql(
-            f"""
-            INSERT INTO {TABLA_USUARIOS}
-                (nombre, password_hash, proveedor, proveedor_id, email)
-            VALUES
-                (:nombre, :password_hash, 'google', :proveedor_id, :email);
-            """,
-            {
-                "nombre": nombre,
-                "password_hash": generate_password_hash(os.urandom(24).hex()),
-                "proveedor_id": proveedor_id,
-                "email": email
-            }
-        )
-        usuario = obtener_una_fila(
-            f"""
-            SELECT id, nombre, rol, proveedor
-            FROM {TABLA_USUARIOS}
-            WHERE proveedor = 'google'
-            AND proveedor_id = :proveedor_id;
-            """,
-            {"proveedor_id": proveedor_id}
-        )
+    return redirect(url_for("index"))
 
-    session["usuario_id"] = usuario["id"]
-    session["usuario_nombre"] = usuario["nombre"]
-    session["usuario_rol"] = usuario["rol"]
-    session["usuario_proveedor"] = usuario["proveedor"]
-    guardar_mensaje("Sesión iniciada con Google.")
 
+@app.get("/login/github")
+def iniciar_sesion_github():
+    if not registrar_github_oauth():
+        guardar_mensaje("El inicio con GitHub todavía no está configurado.")
+        return redirect(url_for("index"))
+
+    return oauth.github.authorize_redirect(url_externa("github_callback"))
+
+
+@app.get("/auth/github")
+def github_callback():
+    if not registrar_github_oauth():
+        guardar_mensaje("El inicio con GitHub todavía no está configurado.")
+        return redirect(url_for("index"))
+
+    try:
+        oauth.github.authorize_access_token()
+        perfil = oauth.github.get("user").json()
+        emails = oauth.github.get("user/emails").json()
+    except Exception as error:
+        print("Error en login con GitHub:", error)
+        guardar_mensaje("No se pudo iniciar sesión con GitHub.")
+        return redirect(url_for("index"))
+
+    proveedor_id = str(perfil.get("id") or "")
+    email = perfil.get("email") or ""
+
+    if not email:
+        principal = next((item for item in emails if item.get("primary") and item.get("verified")), {})
+        email = principal.get("email", "")
+
+    if not proveedor_id:
+        guardar_mensaje("GitHub no devolvió un identificador válido.")
+        return redirect(url_for("index"))
+
+    nombre = perfil.get("name") or perfil.get("login") or "Usuario GitHub"
+    usuario = buscar_o_crear_usuario_oauth("github", proveedor_id, nombre, email)
+    iniciar_sesion_usuario(usuario, "Sesión iniciada con GitHub.")
+    return redirect(url_for("index"))
+
+
+@app.get("/login/microsoft")
+def iniciar_sesion_microsoft():
+    if not registrar_microsoft_oauth():
+        guardar_mensaje("El inicio con Microsoft todavía no está configurado.")
+        return redirect(url_for("index"))
+
+    return oauth.microsoft.authorize_redirect(url_externa("microsoft_callback"))
+
+
+@app.get("/auth/microsoft")
+def microsoft_callback():
+    if not registrar_microsoft_oauth():
+        guardar_mensaje("El inicio con Microsoft todavía no está configurado.")
+        return redirect(url_for("index"))
+
+    try:
+        token = oauth.microsoft.authorize_access_token()
+        info = token.get("userinfo") or oauth.microsoft.userinfo()
+    except Exception as error:
+        print("Error en login con Microsoft:", error)
+        guardar_mensaje("No se pudo iniciar sesión con Microsoft.")
+        return redirect(url_for("index"))
+
+    proveedor_id = info.get("sub") or info.get("oid")
+    email = info.get("email") or info.get("preferred_username") or ""
+    nombre = info.get("name") or (email.split("@")[0] if email else "Usuario Microsoft")
+
+    if not proveedor_id:
+        guardar_mensaje("Microsoft no devolvió un identificador válido.")
+        return redirect(url_for("index"))
+
+    usuario = buscar_o_crear_usuario_oauth("microsoft", proveedor_id, nombre, email)
+    iniciar_sesion_usuario(usuario, "Sesión iniciada con Microsoft.")
     return redirect(url_for("index"))
 
 
@@ -864,6 +1181,45 @@ def cambiar_password():
         {"password_hash": generate_password_hash(password_nueva), "usuario_id": usuario["id"]}
     )
     guardar_mensaje("Contraseña actualizada.")
+    return redirect(url_for("index", _anchor="cuenta"))
+
+
+@app.post("/cuenta/cambiar-email")
+def cambiar_email():
+    if rechazar_si_csrf_invalido():
+        return redirect(url_for("index", _anchor="cuenta"))
+
+    usuario = usuario_actual()
+
+    if usuario is None:
+        guardar_mensaje("Inicia sesión para cambiar tu correo.")
+        return redirect(url_for("index", _anchor="comentarios"))
+
+    if usuario["proveedor"] != "local":
+        guardar_mensaje("Las cuentas externas administran su correo desde su proveedor.")
+        return redirect(url_for("index", _anchor="cuenta"))
+
+    email = request.form.get("email", "").strip().lower()
+    password = request.form.get("password", "")
+
+    if not email_valido(email):
+        guardar_mensaje("Escribe un correo válido.")
+        return redirect(url_for("index", _anchor="cuenta"))
+
+    cuenta = obtener_una_fila(
+        f"SELECT password_hash FROM {TABLA_USUARIOS} WHERE id = :usuario_id AND proveedor = 'local';",
+        {"usuario_id": usuario["id"]}
+    )
+
+    if not cuenta or not check_password_hash(cuenta["password_hash"], password):
+        guardar_mensaje("La contraseña no es correcta.")
+        return redirect(url_for("index", _anchor="cuenta"))
+
+    ejecutar_sql(
+        f"UPDATE {TABLA_USUARIOS} SET email = :email WHERE id = :usuario_id;",
+        {"email": email, "usuario_id": usuario["id"]}
+    )
+    guardar_mensaje("Correo de recuperación actualizado.")
     return redirect(url_for("index", _anchor="cuenta"))
 
 
@@ -1564,6 +1920,9 @@ def api_diagnostico():
             "google_client_id_configurado": bool(os.getenv("GOOGLE_CLIENT_ID")),
             "google_client_secret_configurado": bool(os.getenv("GOOGLE_CLIENT_SECRET")),
             "google_login_disponible": registrar_google_oauth(),
+            "github_login_disponible": registrar_github_oauth(),
+            "microsoft_login_disponible": registrar_microsoft_oauth(),
+            "smtp_recuperacion_configurado": smtp_configurado(),
             "recaptcha_site_key_configurado": bool(recaptcha_site_key()),
             "recaptcha_secret_key_configurado": bool(recaptcha_secret_key()),
             "admin_configurado": bool(os.getenv("ADMIN_USER") and os.getenv("ADMIN_PASSWORD"))

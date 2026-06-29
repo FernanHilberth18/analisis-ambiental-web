@@ -1338,25 +1338,34 @@ tbody tr:hover {
     color: #07384b;
 }
 
-.google-login {
+.oauth-buttons {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.oauth-login {
     width: 52px;
     height: 52px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 10px;
     border: 1px solid #cbd5d1;
     border-radius: 8px;
     background: #ffffff;
     text-decoration: none;
 }
 
-.google-login svg {
+.oauth-login svg {
     width: 26px;
     height: 26px;
 }
 
-.google-login:hover {
+.github-login svg {
+    fill: #111827;
+}
+
+.oauth-login:hover {
     border-color: #94a3b8;
     box-shadow: 0 10px 22px rgba(15, 38, 48, 0.1);
 }
@@ -1376,6 +1385,32 @@ tbody tr:hover {
     margin-bottom: 12px;
     color: #20363d;
     font-weight: 800;
+}
+
+.recuperacion-panel {
+    margin-top: 12px;
+    border-top: 1px solid var(--line);
+    padding-top: 12px;
+}
+
+.recuperacion-panel summary {
+    color: #075985;
+    cursor: pointer;
+    font-weight: 800;
+}
+
+.recuperacion-panel form {
+    margin-top: 10px;
+}
+
+.auth-reset-shell {
+    width: min(460px, calc(100% - 32px));
+    margin: 10vh auto;
+}
+
+.auth-reset-shell h1 {
+    margin: 6px 0 16px;
+    color: #07384b;
 }
 
 .auth-card input,
