@@ -294,6 +294,7 @@ def usuario_actual():
         "id": session["usuario_id"],
         "nombre": session.get("usuario_nombre", "Usuario"),
         "rol": session.get("usuario_rol", "usuario"),
+        "proveedor": session.get("usuario_proveedor", "local"),
         "es_admin": session.get("usuario_rol") == "admin"
     }
 
@@ -572,12 +573,13 @@ def registrar_usuario():
         {"nombre": nombre, "password_hash": generate_password_hash(password)}
     )
     usuario = obtener_una_fila(
-        f"SELECT id, nombre, rol FROM {TABLA_USUARIOS} WHERE LOWER(nombre) = LOWER(:nombre);",
+        f"SELECT id, nombre, rol, proveedor FROM {TABLA_USUARIOS} WHERE LOWER(nombre) = LOWER(:nombre);",
         {"nombre": nombre}
     )
     session["usuario_id"] = usuario["id"]
     session["usuario_nombre"] = usuario["nombre"]
     session["usuario_rol"] = usuario["rol"]
+    session["usuario_proveedor"] = usuario["proveedor"]
     guardar_mensaje("Registro completado. Ya puedes comentar.")
 
     return redirect(url_for("index"))
@@ -591,7 +593,7 @@ def iniciar_sesion():
     nombre = request.form.get("nombre", "").strip()
     password = request.form.get("password", "")
     usuario = obtener_una_fila(
-        f"SELECT id, nombre, password_hash, rol FROM {TABLA_USUARIOS} WHERE LOWER(nombre) = LOWER(:nombre);",
+        f"SELECT id, nombre, password_hash, rol, proveedor FROM {TABLA_USUARIOS} WHERE LOWER(nombre) = LOWER(:nombre);",
         {"nombre": nombre}
     )
 
@@ -602,6 +604,7 @@ def iniciar_sesion():
     session["usuario_id"] = usuario["id"]
     session["usuario_nombre"] = usuario["nombre"]
     session["usuario_rol"] = usuario["rol"]
+    session["usuario_proveedor"] = usuario["proveedor"]
     guardar_mensaje("Sesión iniciada.")
 
     return redirect(url_for("index"))
@@ -645,7 +648,7 @@ def google_callback():
 
     usuario = obtener_una_fila(
         f"""
-        SELECT id, nombre, rol
+        SELECT id, nombre, rol, proveedor
         FROM {TABLA_USUARIOS}
         WHERE proveedor = 'google'
         AND proveedor_id = :proveedor_id;
@@ -671,7 +674,7 @@ def google_callback():
         )
         usuario = obtener_una_fila(
             f"""
-            SELECT id, nombre, rol
+            SELECT id, nombre, rol, proveedor
             FROM {TABLA_USUARIOS}
             WHERE proveedor = 'google'
             AND proveedor_id = :proveedor_id;
@@ -682,6 +685,7 @@ def google_callback():
     session["usuario_id"] = usuario["id"]
     session["usuario_nombre"] = usuario["nombre"]
     session["usuario_rol"] = usuario["rol"]
+    session["usuario_proveedor"] = usuario["proveedor"]
     guardar_mensaje("Sesión iniciada con Google.")
 
     return redirect(url_for("index"))
@@ -817,6 +821,87 @@ def eliminar_comentario(comentario_id):
 
     guardar_mensaje("Comentario eliminado." if eliminado else "No se pudo eliminar ese comentario.")
     return redirect(url_for("index", _anchor="mis-comentarios"))
+
+
+@app.post("/cuenta/cambiar-password")
+def cambiar_password():
+    if rechazar_si_csrf_invalido():
+        return redirect(url_for("index", _anchor="cuenta"))
+
+    usuario = usuario_actual()
+
+    if usuario is None:
+        guardar_mensaje("Inicia sesión para cambiar tu contraseña.")
+        return redirect(url_for("index", _anchor="comentarios"))
+
+    if usuario["proveedor"] != "local":
+        guardar_mensaje("Las cuentas de Google cambian su contraseña desde Google.")
+        return redirect(url_for("index", _anchor="cuenta"))
+
+    password_actual = request.form.get("password_actual", "")
+    password_nueva = request.form.get("password_nueva", "")
+    password_confirmacion = request.form.get("password_confirmacion", "")
+
+    if len(password_nueva) < 8:
+        guardar_mensaje("La nueva contraseña debe tener al menos 8 caracteres.")
+        return redirect(url_for("index", _anchor="cuenta"))
+
+    if password_nueva != password_confirmacion:
+        guardar_mensaje("La confirmación de contraseña no coincide.")
+        return redirect(url_for("index", _anchor="cuenta"))
+
+    cuenta = obtener_una_fila(
+        f"SELECT password_hash FROM {TABLA_USUARIOS} WHERE id = :usuario_id AND proveedor = 'local';",
+        {"usuario_id": usuario["id"]}
+    )
+
+    if not cuenta or not check_password_hash(cuenta["password_hash"], password_actual):
+        guardar_mensaje("La contraseña actual no es correcta.")
+        return redirect(url_for("index", _anchor="cuenta"))
+
+    ejecutar_sql(
+        f"UPDATE {TABLA_USUARIOS} SET password_hash = :password_hash WHERE id = :usuario_id;",
+        {"password_hash": generate_password_hash(password_nueva), "usuario_id": usuario["id"]}
+    )
+    guardar_mensaje("Contraseña actualizada.")
+    return redirect(url_for("index", _anchor="cuenta"))
+
+
+@app.post("/cuenta/eliminar")
+def eliminar_cuenta():
+    if rechazar_si_csrf_invalido():
+        return redirect(url_for("index", _anchor="cuenta"))
+
+    usuario = usuario_actual()
+
+    if usuario is None:
+        guardar_mensaje("Inicia sesión para eliminar tu cuenta.")
+        return redirect(url_for("index", _anchor="comentarios"))
+
+    confirmacion = request.form.get("confirmacion", "").strip()
+
+    if confirmacion != "ELIMINAR":
+        guardar_mensaje("Escribe ELIMINAR para confirmar la eliminación de tu cuenta.")
+        return redirect(url_for("index", _anchor="cuenta"))
+
+    if usuario["proveedor"] == "local":
+        password = request.form.get("password", "")
+        cuenta = obtener_una_fila(
+            f"SELECT password_hash FROM {TABLA_USUARIOS} WHERE id = :usuario_id AND proveedor = 'local';",
+            {"usuario_id": usuario["id"]}
+        )
+
+        if not cuenta or not check_password_hash(cuenta["password_hash"], password):
+            guardar_mensaje("La contraseña no es correcta.")
+            return redirect(url_for("index", _anchor="cuenta"))
+
+    ejecutar_sql(
+        f"DELETE FROM {TABLA_USUARIOS} WHERE id = :usuario_id;",
+        {"usuario_id": usuario["id"]}
+    )
+    session.clear()
+    guardar_mensaje("Cuenta eliminada.")
+    return redirect(url_for("index", _anchor="comentarios"))
 
 
 @app.get("/admin")

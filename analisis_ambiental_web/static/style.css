@@ -1339,18 +1339,21 @@ tbody tr:hover {
 }
 
 .google-login {
-    min-height: 42px;
+    width: 52px;
+    height: 52px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 100%;
     margin-bottom: 10px;
     border: 1px solid #cbd5d1;
     border-radius: 8px;
-    color: #20363d;
     background: #ffffff;
-    font-weight: 800;
     text-decoration: none;
+}
+
+.google-login svg {
+    width: 26px;
+    height: 26px;
 }
 
 .google-login:hover {
@@ -1472,10 +1475,11 @@ tbody tr:hover {
     display: flex;
     justify-content: space-between;
     gap: 10px;
-    align-items: center;
+    align-items: flex-start;
 }
 
 .mi-comentario-meta strong {
+    display: inline-flex;
     padding: 5px 10px;
     border-radius: 999px;
     background: #fff7ed;
@@ -1495,8 +1499,74 @@ tbody tr:hover {
 }
 
 .mi-comentario-meta span {
+    display: block;
+    margin-top: 4px;
     color: #64777a;
     font-size: 12px;
+}
+
+.comentario-iconos {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.icon-button,
+.editar-comentario summary {
+    width: 36px;
+    height: 36px;
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #cbd5d1;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #0f3d48;
+    cursor: pointer;
+    padding: 0;
+}
+
+.icon-button svg,
+.editar-comentario summary svg {
+    width: 18px;
+    height: 18px;
+    fill: currentColor;
+}
+
+.icon-button:hover,
+.editar-comentario summary:hover {
+    border-color: #94a3b8;
+    box-shadow: 0 8px 18px rgba(15, 38, 48, 0.1);
+}
+
+.icon-button.danger {
+    color: #991b1b;
+}
+
+.editar-comentario {
+    position: relative;
+}
+
+.editar-comentario summary {
+    list-style: none;
+}
+
+.editar-comentario summary::-webkit-details-marker {
+    display: none;
+}
+
+.editar-comentario form {
+    position: absolute;
+    right: 0;
+    top: 42px;
+    z-index: 20;
+    width: min(420px, calc(100vw - 42px));
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #ffffff;
+    box-shadow: var(--shadow);
 }
 
 .mi-comentario textarea {
@@ -1518,6 +1588,73 @@ tbody tr:hover {
 
 .eliminar-comentario-form {
     justify-self: end;
+}
+
+.mi-comentario p {
+    margin: 0;
+    color: #344a52;
+    line-height: 1.5;
+}
+
+.cuenta-panel {
+    margin-top: 16px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fbfdf9;
+}
+
+.cuenta-panel > summary {
+    padding: 14px 16px;
+    color: #07384b;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.cuenta-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    padding: 0 16px 16px;
+}
+
+.cuenta-grid form,
+.cuenta-aviso {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #ffffff;
+    padding: 14px;
+}
+
+.cuenta-grid h3 {
+    margin: 0 0 10px;
+    color: #07384b;
+}
+
+.cuenta-grid p {
+    margin: 0 0 12px;
+    color: #53676b;
+}
+
+.cuenta-grid label {
+    display: grid;
+    gap: 6px;
+    margin-bottom: 10px;
+    color: #20363d;
+    font-weight: 800;
+}
+
+.cuenta-grid input {
+    width: 100%;
+    border: 1px solid #cbd5d1;
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: #20363d;
+    background: #ffffff;
+    font: inherit;
+}
+
+.cuenta-peligro {
+    border-color: #fecaca !important;
 }
 
 .admin-link {
@@ -1932,7 +2069,16 @@ footer p {
     }
 
     .auth-grid,
-    .captcha-grid {
+    .captcha-grid,
+    .cuenta-grid {
         grid-template-columns: 1fr;
+    }
+
+    .editar-comentario form {
+        position: fixed;
+        left: 10px;
+        right: 10px;
+        top: 72px;
+        width: auto;
     }
 }
