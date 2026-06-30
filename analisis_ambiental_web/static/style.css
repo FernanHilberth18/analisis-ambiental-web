@@ -3000,6 +3000,74 @@ footer p {
         grid-template-columns: 1fr;
     }
 
+    .tabla-card {
+        padding: 14px;
+    }
+
+    .tabla-contenedor {
+        overflow: visible;
+    }
+
+    table {
+        min-width: 0;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    table thead {
+        display: none;
+    }
+
+    table,
+    tbody,
+    tr,
+    td {
+        display: block;
+        width: 100%;
+    }
+
+    #tabla-presion {
+        display: grid;
+        gap: 10px;
+    }
+
+    #tabla-presion tr {
+        padding: 10px 11px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #ffffff;
+        box-shadow: 0 8px 20px rgba(28, 55, 54, 0.07);
+    }
+
+    #tabla-presion tr.fila-activa {
+        background: #e7f7f7;
+        box-shadow: inset 4px 0 0 var(--water-deep), 0 8px 20px rgba(28, 55, 54, 0.07);
+    }
+
+    #tabla-presion td {
+        display: flex;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 8px 0;
+        border-bottom: 1px solid #edf3f0;
+        color: #0f2630;
+        text-align: right;
+        font-size: 13px;
+        line-height: 1.25;
+    }
+
+    #tabla-presion td:last-child {
+        border-bottom: 0;
+    }
+
+    #tabla-presion td::before {
+        content: attr(data-label);
+        flex: 0 0 46%;
+        color: #64777a;
+        font-weight: 800;
+        text-align: left;
+    }
+
     .fauna-aprendizaje {
         grid-template-columns: 1fr;
     }

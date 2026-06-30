@@ -81,7 +81,6 @@
 
     <nav class="quick-links" aria-label="Accesos rápidos">
         <a href="#mapa">Mapa</a>
-        <a href="#tabla-presion">Tabla de presión</a>
         <a href="#comentarios">Comentarios</a>
         <button class="js-presentacion-toggle" type="button" onclick="toggleModoPresentacion()">Modo presentación</button>
     </nav>
@@ -1490,11 +1489,11 @@
                 fila.dataset.orden = item.orden;
 
                 fila.innerHTML = `
-                    <td>${item.rango}</td>
-                    <td>${item.total_edificios}</td>
-                    <td>${porcentaje}%</td>
-                    <td>${item.distancia_promedio_m} m</td>
-                    <td>${obtenerNivelPorOrden(item.orden)}</td>
+                    <td data-label="Rango">${item.rango}</td>
+                    <td data-label="Edificios">${item.total_edificios}</td>
+                    <td data-label="Porcentaje">${porcentaje}%</td>
+                    <td data-label="Distancia promedio">${item.distancia_promedio_m} m</td>
+                    <td data-label="Nivel">${obtenerNivelPorOrden(item.orden)}</td>
                 `;
 
                 fila.addEventListener("click", function(){
