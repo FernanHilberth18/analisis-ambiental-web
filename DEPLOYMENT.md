@@ -1,6 +1,6 @@
-# Publicar en internet
+# Guia de despliegue
 
-La web ya se publica con **GitHub + Render**.
+La web se despliega con **GitHub + Render**.
 
 ## Flujo normal
 
@@ -10,9 +10,9 @@ git commit -m "Mensaje del cambio"
 git push origin main
 ```
 
-Render redeploya automáticamente cuando `main` recibe cambios.
+Render ejecuta un nuevo despliegue cuando `main` recibe cambios.
 
-## Configuración clave en Render
+## Configuracion clave en Render
 
 - Root Directory: `analisis_ambiental_web`
 - Build Command: `pip install -r requirements.txt`
@@ -46,4 +46,3 @@ Restaurar en Render:
 ```bash
 pg_restore --clean --if-exists --no-owner --dbname "URL_EXTERNA_DE_RENDER" analisis_ambiental.dump
 ```
-
