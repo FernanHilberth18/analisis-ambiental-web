@@ -228,6 +228,7 @@ summary:focus-visible {
     padding: 24px 30px;
     color: #ffffff;
     border-radius: 8px;
+    overflow: hidden;
     background:
         linear-gradient(135deg, rgba(15, 38, 48, 0.96), rgba(15, 118, 110, 0.9)),
         url("https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1600&q=70");
@@ -484,6 +485,9 @@ summary:focus-visible {
     color: var(--ink-soft);
     line-height: 1.58;
     font-size: 14px;
+    text-align: justify;
+    text-justify: inter-word;
+    hyphens: auto;
 }
 
 .stats {
@@ -694,6 +698,9 @@ summary:focus-visible {
     margin: 6px 0 0 0;
     color: var(--ink-soft);
     line-height: 1.4;
+    text-align: justify;
+    text-justify: inter-word;
+    hyphens: auto;
 }
 
 .map-actions {
@@ -1074,6 +1081,9 @@ summary:focus-visible {
     color: #155e75;
     line-height: 1.45;
     font-size: 14px;
+    text-align: justify;
+    text-justify: inter-word;
+    hyphens: auto;
 }
 
 .lista-fauna {
@@ -1186,6 +1196,9 @@ summary:focus-visible {
     color: #344a52;
     line-height: 1.45;
     font-size: 13px;
+    text-align: justify;
+    text-justify: inter-word;
+    hyphens: auto;
 }
 
 .animal-card small {
@@ -1252,6 +1265,9 @@ summary:focus-visible {
 
 .popup p {
     margin: 4px 0;
+    text-align: justify;
+    text-justify: inter-word;
+    hyphens: auto;
 }
 
 .bloques-info,
@@ -1288,6 +1304,9 @@ summary:focus-visible {
     color: #53676b;
     line-height: 1.6;
     font-size: 15px;
+    text-align: justify;
+    text-justify: inter-word;
+    hyphens: auto;
 }
 
 .info-card ul {
@@ -2624,10 +2643,26 @@ footer p {
         min-width: 0;
         justify-items: start;
         padding: 10px 12px;
+        overflow: hidden;
     }
 
     .hero-status span {
         text-align: left;
+    }
+
+    .hero-status .badge,
+    .badge {
+        display: flex;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        justify-content: flex-start;
+        padding: 9px 12px;
+        font-size: 12px;
+        line-height: 1.25;
+        overflow-wrap: break-word;
+        word-break: normal;
+        white-space: normal;
     }
 
     .hero h1 {
