@@ -426,7 +426,7 @@ summary:focus-visible {
     display: grid;
     grid-template-columns: minmax(320px, 23vw) minmax(0, 1fr);
     gap: 18px;
-    align-items: start;
+    align-items: stretch;
 }
 
 .panel,
@@ -462,6 +462,7 @@ summary:focus-visible {
     padding: 22px;
     position: sticky;
     top: 16px;
+    align-self: stretch;
 }
 
 .panel h2,
@@ -912,8 +913,8 @@ summary:focus-visible {
     position: relative;
     isolation: isolate;
     width: 100%;
-    height: clamp(520px, 68vh, 800px);
-    min-height: 520px;
+    height: clamp(460px, 60vh, 680px);
+    min-height: 460px;
     border-radius: 8px;
     border: 1px solid #b9d3d4;
     overflow: hidden;
@@ -1402,7 +1403,16 @@ tbody tr:hover {
     display: grid;
     grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.75fr);
     gap: 18px;
-    align-items: start;
+    align-items: stretch;
+}
+
+.porcentajes-card {
+    display: flex;
+    flex-direction: column;
+}
+
+.porcentajes-card .comparador-rangos {
+    margin-top: auto;
 }
 
 .grafica-card p {
@@ -2562,10 +2572,12 @@ footer p {
 @media (max-width: 1180px) {
     .layout {
         grid-template-columns: 1fr;
+        align-items: start;
     }
 
     .panel {
         position: static;
+        align-self: auto;
     }
 
     .stats {
@@ -2597,6 +2609,10 @@ footer p {
 
     .analisis-graficas-secundarias {
         grid-template-columns: 1fr;
+    }
+
+    .porcentajes-card .comparador-rangos {
+        margin-top: 16px;
     }
 }
 
