@@ -3,8 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta
+        name="description"
+        content="Observatorio interactivo sobre presión urbana, anillos de distancia y fauna educativa del Humedal Bahía de Panamá."
+    >
+    <meta name="theme-color" content="#0f766e">
+    <meta property="og:title" content="Presión Urbana sobre el Humedal Bahía de Panamá">
+    <meta
+        property="og:description"
+        content="Mapa interactivo con análisis espacial, PostGIS, Flask y Leaflet para estudiar el entorno del humedal."
+    >
     <title>Presión Urbana sobre el Humedal Bahía de Panamá</title>
 
+    <link rel="preconnect" href="https://unpkg.com">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 
     <link 
@@ -21,6 +33,33 @@
 </head>
 
 <body>
+    <a class="skip-link" href="#contenido-principal">Saltar al contenido principal</a>
+
+    <div id="onboarding-observatorio" class="onboarding" role="dialog" aria-modal="true" aria-labelledby="onboarding-titulo">
+        <div class="onboarding-card">
+            <span class="seccion-label">Inicio rápido</span>
+            <h2 id="onboarding-titulo">Explora el observatorio en tres pasos</h2>
+            <div class="onboarding-pasos">
+                <article>
+                    <strong>1</strong>
+                    <p>Activa capas para ver humedal, anillos, edificios y fauna.</p>
+                </article>
+                <article>
+                    <strong>2</strong>
+                    <p>Haz clic en el mapa para consultar presión, distancia y zona ecológica.</p>
+                </article>
+                <article>
+                    <strong>3</strong>
+                    <p>Usa análisis urbano para comparar rangos y explicar los resultados.</p>
+                </article>
+            </div>
+            <div class="onboarding-actions">
+                <button type="button" onclick="cerrarOnboarding()">Empezar</button>
+                <button class="boton-secundario" type="button" onclick="cerrarOnboarding(true)">No mostrar otra vez</button>
+            </div>
+        </div>
+    </div>
+
     <header class="hero">
         <div class="hero-copy">
             <span class="etiqueta">Observatorio ambiental</span>
@@ -35,12 +74,19 @@
     </header>
 
     <nav class="modo-nav" aria-label="Vistas principales">
-        <button class="modo-boton activo" type="button" onclick="cambiarVista('mapa', this)">Observatorio</button>
+        <button class="modo-boton activo" type="button" aria-current="page" onclick="cambiarVista('mapa', this)">Observatorio</button>
         <button class="modo-boton" type="button" onclick="cambiarVista('analisis', this)">Análisis urbano</button>
         <button class="modo-boton" type="button" onclick="cambiarVista('metodologia', this)">Metodología y fuentes</button>
     </nav>
 
-    <main class="layout vista vista-mapa vista-activa">
+    <nav class="quick-links" aria-label="Accesos rápidos">
+        <a href="#mapa">Mapa</a>
+        <a href="#tabla-presion">Tabla de presión</a>
+        <a href="#comentarios">Comentarios</a>
+        <button type="button" onclick="toggleModoPresentacion()">Modo presentación</button>
+    </nav>
+
+    <main id="contenido-principal" class="layout vista vista-mapa vista-activa">
         <section class="panel">
             <h2>Resumen del análisis</h2>
 
@@ -59,23 +105,23 @@
 
                 <div class="stat-card">
                     <span class="stat-label">Edificaciones analizadas</span>
-                    <strong id="stat-edificios">Cargando...</strong>
+                    <strong id="stat-edificios">Cargando</strong>
                 </div>
 
                 <div class="stat-card">
                     <span class="stat-label">Área del humedal</span>
-                    <strong id="stat-hectareas">Cargando...</strong>
+                    <strong id="stat-hectareas">Cargando</strong>
                 </div>
 
                 <div class="stat-card alerta">
                     <span class="stat-label">Rango con más edificaciones</span>
-                    <strong id="stat-zona-critica">Cargando...</strong>
+                    <strong id="stat-zona-critica">Cargando</strong>
                 </div>
             </div>
 
             <div class="indicador-presion">
                 <span>Índice espacial de presión urbana</span>
-                <strong id="nivel-presion">Calculando...</strong>
+                <strong id="nivel-presion">Calculando</strong>
 
                 <div class="barra">
                     <div id="barra-presion" class="barra-fill"></div>
@@ -155,23 +201,24 @@
             <div class="map-toolbar">
                 <div class="toolbar-group">
                     <span>Análisis urbano</span>
-                    <button onclick="mostrarZonaCritica()">Zona crítica</button>
-                    <button onclick="mostrarZonasCriticasPorRango()">Concentraciones por rango</button>
-                    <button onclick="modoConcentracion()">Concentración urbana</button>
-                    <button onclick="generarDiagnosticoInteractivo()">Diagnóstico</button>
+                    <button data-action="critica" onclick="mostrarZonaCritica()">Zona crítica</button>
+                    <button data-action="criticas" onclick="mostrarZonasCriticasPorRango()">Concentraciones por rango</button>
+                    <button data-action="heatmap" onclick="modoConcentracion()">Concentración urbana</button>
+                    <button data-action="diagnostico" onclick="generarDiagnosticoInteractivo()">Diagnóstico</button>
                 </div>
 
                 <div class="toolbar-group">
                     <span>Aprendizaje</span>
-                    <button onclick="activarModoFaunaEducativa()">Fauna educativa</button>
+                    <button data-action="fauna" onclick="activarModoFaunaEducativa()">Fauna educativa</button>
                 </div>
 
                 <div class="toolbar-group">
                     <span>Mapa</span>
-                    <button onclick="mostrarTodasLasCapas()">Todas las capas</button>
+                    <button data-action="todas" onclick="mostrarTodasLasCapas()">Todas las capas</button>
                     <button onclick="centrarMapa()">Centrar</button>
                     <button onclick="limpiarCapasTematicas()">Quitar marcadores</button>
                     <button onclick="limpiarCapas()">Limpiar</button>
+                    <button data-action="presentacion" onclick="toggleModoPresentacion()">Presentación</button>
                 </div>
             </div>
 
@@ -191,7 +238,18 @@
             </div>
 
             <div id="map-status" class="map-status" aria-live="polite"></div>
-            <div id="mapa"></div>
+            <div class="map-frame">
+                <div id="map-loading" class="map-loading visible" aria-live="polite">
+                    <div class="skeleton-line skeleton-title"></div>
+                    <div class="skeleton-grid">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                    <p>Cargando capas del observatorio</p>
+                </div>
+                <div id="mapa"></div>
+            </div>
 
             <aside id="panel-punto" class="panel-punto">
                 <div class="panel-punto-header">
@@ -251,7 +309,7 @@
 
                     <tbody id="tabla-presion">
                         <tr>
-                            <td colspan="5">Cargando datos...</td>
+                            <td colspan="5">Cargando datos…</td>
                         </tr>
                     </tbody>
                 </table>
@@ -262,7 +320,7 @@
             <h2>Hallazgos principales</h2>
 
             <ul id="hallazgos">
-                <li>Cargando hallazgos...</li>
+                <li>Cargando hallazgos…</li>
             </ul>
         </div>
 
@@ -290,7 +348,7 @@
 
                 <div id="diagnostico-urbano" class="diagnostico-urbano">
                     <h3>Diagnóstico urbano</h3>
-                    <p>Cargando lectura automática...</p>
+                    <p>Cargando lectura automática…</p>
                 </div>
             </div>
         </div>
@@ -298,7 +356,7 @@
         <div class="porcentajes-card">
             <h2>Distribución porcentual</h2>
             <div id="porcentajes-rangos" class="porcentajes-lista">
-                Cargando porcentajes...
+                Cargando porcentajes…
             </div>
 
             <div id="analisis-rango" class="analisis-rango">
@@ -312,7 +370,7 @@
                     <select id="comparador-a" onchange="actualizarComparadorSeleccionado()"></select>
                     <select id="comparador-b" onchange="actualizarComparadorSeleccionado()"></select>
                 </div>
-                <p id="comparador-resultado">Selecciona dos rangos para comparar su presión urbana.</p>
+                <div id="comparador-resultado" class="comparador-resultado">Selecciona dos rangos para comparar su presión urbana.</div>
             </div>
         </div>
     </section>
@@ -321,7 +379,7 @@
         <h2>Conclusión automática del análisis</h2>
 
         <p id="conclusion-texto">
-            Cargando conclusión...
+            Cargando conclusión…
         </p>
     </section>
 
@@ -435,7 +493,7 @@
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <label>
                     Comentario
-                    <textarea name="contenido" rows="4" maxlength="800" required placeholder="Escribe una observación sobre el humedal, fauna o presión urbana..."></textarea>
+                    <textarea name="contenido" rows="4" maxlength="800" required placeholder="Escribe una observación sobre el humedal, fauna o presión urbana…" autocomplete="off"></textarea>
                 </label>
 
                 <label class="campo-oculto">
@@ -510,16 +568,16 @@
                         <form action="{{ url_for('cambiar_password') }}" method="post">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <h3>Cambiar contraseña</h3>
-                            <label>Contraseña actual <input type="password" name="password_actual" required></label>
-                            <label>Nueva contraseña <input type="password" name="password_nueva" minlength="8" required></label>
-                            <label>Confirmar nueva contraseña <input type="password" name="password_confirmacion" minlength="8" required></label>
+                            <label>Contraseña actual <input type="password" name="password_actual" autocomplete="current-password" required></label>
+                            <label>Nueva contraseña <input type="password" name="password_nueva" minlength="8" autocomplete="new-password" required></label>
+                            <label>Confirmar nueva contraseña <input type="password" name="password_confirmacion" minlength="8" autocomplete="new-password" required></label>
                             <button type="submit">Actualizar contraseña</button>
                         </form>
                         <form action="{{ url_for('cambiar_email') }}" method="post">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <h3>Correo de recuperación</h3>
-                            <label>Nuevo correo <input type="email" name="email" maxlength="160" required></label>
-                            <label>Contraseña actual <input type="password" name="password" required></label>
+                            <label>Nuevo correo <input type="email" name="email" maxlength="160" autocomplete="email" required></label>
+                            <label>Contraseña actual <input type="password" name="password" autocomplete="current-password" required></label>
                             <button type="submit">Guardar correo</button>
                         </form>
                     {% else %}
@@ -534,7 +592,7 @@
                         <h3>Eliminar cuenta</h3>
                         <p>Esto elimina tu usuario y tus comentarios.</p>
                         {% if usuario.proveedor == 'local' %}
-                            <label>Contraseña <input type="password" name="password" required></label>
+                            <label>Contraseña <input type="password" name="password" autocomplete="current-password" required></label>
                         {% endif %}
                         <label>Escribe ELIMINAR <input type="text" name="confirmacion" required></label>
                         <button class="boton-secundario" type="submit">Eliminar mi cuenta</button>
@@ -571,8 +629,8 @@
                         </div>
                         <span class="auth-separador">o usa usuario y contraseña</span>
                     {% endif %}
-                    <label>Usuario <input type="text" name="nombre" required></label>
-                    <label>Contraseña <input type="password" name="password" required></label>
+                    <label>Usuario <input type="text" name="nombre" autocomplete="username" required></label>
+                    <label>Contraseña <input type="password" name="password" autocomplete="current-password" required></label>
                     <button type="submit">Entrar</button>
                 </form>
 
@@ -581,7 +639,7 @@
                         <summary>Olvidé mi contraseña</summary>
                         <form action="{{ url_for('solicitar_recuperacion_password') }}" method="post">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <label>Correo <input type="email" name="email" required></label>
+                            <label>Correo <input type="email" name="email" autocomplete="email" required></label>
                             <button type="submit">Enviar enlace</button>
                         </form>
                     </details>
@@ -593,9 +651,9 @@
                     {% if google_login_disponible or github_login_disponible or microsoft_login_disponible %}
                         <p class="auth-nota">También puedes usar los botones externos para crear tu acceso automáticamente.</p>
                     {% endif %}
-                    <label>Usuario <input type="text" name="nombre" minlength="3" maxlength="40" required></label>
-                    <label>Correo de recuperación <input type="email" name="email" maxlength="160" required></label>
-                    <label>Contraseña <input type="password" name="password" minlength="6" required></label>
+                    <label>Usuario <input type="text" name="nombre" minlength="3" maxlength="40" autocomplete="username" required></label>
+                    <label>Correo de recuperación <input type="email" name="email" maxlength="160" autocomplete="email" required></label>
+                    <label>Contraseña <input type="password" name="password" minlength="6" autocomplete="new-password" required></label>
                     <label class="campo-oculto">Sitio web <input type="text" name="sitio_web" tabindex="-1" autocomplete="off"></label>
                     <button type="submit">Registrarme</button>
                 </form>
@@ -623,6 +681,12 @@
         <p>
             Proyecto académico de Tópicos Especiales II e Ingeniería Ambiental desarrollado con Python, Flask, PostgreSQL/PostGIS, Google Earth Engine y Leaflet.
         </p>
+        <nav class="footer-links" aria-label="Créditos y fuentes">
+            <a href="#contenido-principal">Volver al observatorio</a>
+            <a href="https://rsis.ramsar.org/" target="_blank" rel="noopener">Ramsar RSIS</a>
+            <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>
+            <a href="https://leafletjs.com/" target="_blank" rel="noopener">Leaflet</a>
+        </nav>
     </footer>
 
     <script>
@@ -671,8 +735,131 @@
         let graficaPresion = null;
         let graficaDistribucion = null;
         let rangoSeleccionadoOrden = null;
+        let modoPresentacionActivo = false;
 
-        function cambiarVista(nombre, boton){
+        function iniciarAnimacionesInterfaz(){
+            if (!("IntersectionObserver" in window) || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+                return;
+            }
+
+            const elementos = document.querySelectorAll(
+                ".panel, .map-section, .info-card, .grafica-card, .porcentajes-card, .conclusion, .limitaciones, .metodologia-detalle, .fuentes-alcance, .comentarios-section, footer"
+            );
+
+            document.body.classList.add("motion-ready");
+
+            const observador = new IntersectionObserver(function(entradas){
+                entradas.forEach(function(entrada){
+                    if (entrada.isIntersecting) {
+                        entrada.target.classList.add("reveal-visible");
+                        observador.unobserve(entrada.target);
+                    }
+                });
+            }, {
+                threshold: 0.08,
+                rootMargin: "0px 0px -8% 0px"
+            });
+
+            elementos.forEach(function(elemento, indice){
+                elemento.classList.add("motion-reveal");
+                elemento.style.transitionDelay = Math.min(indice * 35, 180) + "ms";
+                observador.observe(elemento);
+            });
+        }
+
+        iniciarAnimacionesInterfaz();
+
+        function inicializarOnboarding(){
+            const panel = document.getElementById("onboarding-observatorio");
+
+            if (!panel) {
+                return;
+            }
+
+            if (localStorage.getItem("observatorio_onboarding_v1") === "oculto") {
+                panel.classList.add("oculto");
+                return;
+            }
+
+            panel.classList.add("visible");
+        }
+
+        function cerrarOnboarding(recordar = false){
+            const panel = document.getElementById("onboarding-observatorio");
+
+            if (recordar) {
+                localStorage.setItem("observatorio_onboarding_v1", "oculto");
+            }
+
+            if (panel) {
+                panel.classList.remove("visible");
+                panel.classList.add("oculto");
+            }
+        }
+
+        function toggleModoPresentacion(){
+            modoPresentacionActivo = !modoPresentacionActivo;
+            document.body.classList.toggle("modo-presentacion", modoPresentacionActivo);
+
+            const boton = document.querySelector('[data-action="presentacion"]');
+
+            if (boton) {
+                boton.classList.toggle("boton-activo", modoPresentacionActivo);
+                boton.textContent = modoPresentacionActivo ? "Salir presentación" : "Presentación";
+            }
+
+            setTimeout(function(){
+                mapa.invalidateSize();
+            }, 260);
+        }
+
+        function mostrarCargaMapa(mensaje = "Cargando capas del observatorio"){
+            const loader = document.getElementById("map-loading");
+
+            if (!loader) {
+                return;
+            }
+
+            const texto = loader.querySelector("p");
+
+            if (texto) {
+                texto.textContent = mensaje;
+            }
+
+            loader.classList.add("visible");
+        }
+
+        function ocultarCargaMapa(){
+            const loader = document.getElementById("map-loading");
+
+            if (loader) {
+                loader.classList.remove("visible");
+            }
+        }
+
+        function recomendacionPorPresion(nivelPresion, distancia){
+            const distanciaNumero = Number(distancia);
+
+            if (nivelPresion === "Presión muy alta" || distanciaNumero <= 250) {
+                return "Priorizar monitoreo de borde, revisar posibles rellenos, escorrentía urbana y cambios de cobertura cercanos al humedal.";
+            }
+
+            if (nivelPresion === "Presión alta" || distanciaNumero <= 500) {
+                return "Mantener vigilancia como zona de transición y contrastar la concentración urbana con recorridos o capas oficiales.";
+            }
+
+            if (nivelPresion === "Presión media") {
+                return "Usar este punto para observar tendencia de crecimiento y compararlo con los rangos más cercanos.";
+            }
+
+            if (nivelPresion === "Presión baja") {
+                return "Conservar como referencia periférica para comparar contra zonas de mayor cercanía al humedal.";
+            }
+
+            return "Registrar el punto como consulta educativa y validar con fuentes oficiales si se requiere una lectura técnica.";
+        }
+
+        function cambiarVista(nombre, boton, actualizarUrl = true){
             document.querySelectorAll(".vista").forEach(function(vista){
                 vista.classList.remove("vista-activa");
             });
@@ -683,10 +870,18 @@
 
             document.querySelectorAll(".modo-boton").forEach(function(item){
                 item.classList.remove("activo");
+                item.removeAttribute("aria-current");
             });
 
             if (boton) {
                 boton.classList.add("activo");
+                boton.setAttribute("aria-current", "page");
+            }
+
+            if (actualizarUrl) {
+                const url = new URL(window.location);
+                url.searchParams.set("vista", nombre);
+                history.replaceState(null, "", url);
             }
 
             if (nombre === "mapa") {
@@ -910,6 +1105,27 @@
                     input.checked = capaVisible(par[1]);
                 }
             });
+
+            sincronizarBotonesMapa();
+        }
+
+        function sincronizarBotonesMapa(){
+            const estados = {
+                heatmap: capaVisible(capaHeatmap),
+                criticas: capaVisible(capaZonasCriticas),
+                fauna: capaVisible(capaFaunaEducativa) || modoFaunaEducativaActivo,
+                todas: capaVisible(capaHumedal) && capaVisible(capaAnillos) && capaVisible(capaEdificios),
+                presentacion: modoPresentacionActivo
+            };
+
+            Object.entries(estados).forEach(function(par){
+                const boton = document.querySelector(`[data-action="${par[0]}"]`);
+
+                if (boton) {
+                    boton.classList.toggle("boton-activo", Boolean(par[1]));
+                    boton.setAttribute("aria-pressed", Boolean(par[1]).toString());
+                }
+            });
         }
 
         function mostrarEstadoFauna(mensaje){
@@ -918,8 +1134,8 @@
 
             panel.classList.add("visible");
             document.getElementById("fauna-zona").textContent = mensaje;
-            document.getElementById("fauna-presion").textContent = "Procesando capas del mapa...";
-            lista.innerHTML = "<p class='fauna-cargando'>Cargando, espera un momento...</p>";
+            document.getElementById("fauna-presion").textContent = "Procesando capas del mapa…";
+            lista.innerHTML = "<p class='fauna-cargando'>Cargando, espera un momento…</p>";
         }
 
         function mostrarEstadoMapa(mensaje){
@@ -1021,6 +1237,22 @@
                 mapa.removeLayer(marcadorFauna);
                 marcadorFauna = null;
             }
+        }
+
+        function restaurarVistaDesdeUrl(){
+            const vista = new URLSearchParams(window.location.search).get("vista");
+            const vistasPermitidas = ["mapa", "analisis", "metodologia"];
+
+            if (!vistasPermitidas.includes(vista)) {
+                return;
+            }
+
+            const botones = Array.from(document.querySelectorAll(".modo-boton"));
+            const boton = botones.find(function(item){
+                return item.getAttribute("onclick").includes(`'${vista}'`);
+            });
+
+            cambiarVista(vista, boton, false);
         }
 
         function cerrarPanelPunto(){
@@ -1558,10 +1790,24 @@
 
             const diferencia = Number(rangoA.total_edificios) - Number(rangoB.total_edificios);
             const mayor = diferencia >= 0 ? rangoA : rangoB;
+            const totalComparado = Number(rangoA.total_edificios) + Number(rangoB.total_edificios);
+            const porcentajeA = totalComparado > 0 ? ((Number(rangoA.total_edificios) / totalComparado) * 100).toFixed(1) : 0;
+            const porcentajeB = totalComparado > 0 ? ((Number(rangoB.total_edificios) / totalComparado) * 100).toFixed(1) : 0;
 
             resultado.innerHTML = `
-                <strong>${mayor.rango}</strong> concentra más edificaciones en la capa analizada.
-                Diferencia: <strong>${Math.abs(diferencia)}</strong> edificios entre ambos rangos.
+                <div class="comparador-barras">
+                    <article>
+                        <span>${rangoA.rango}</span>
+                        <strong>${rangoA.total_edificios} edificios</strong>
+                        <div><i style="width: ${porcentajeA}%"></i></div>
+                    </article>
+                    <article>
+                        <span>${rangoB.rango}</span>
+                        <strong>${rangoB.total_edificios} edificios</strong>
+                        <div><i style="width: ${porcentajeB}%"></i></div>
+                    </article>
+                </div>
+                <p><strong>${mayor.rango}</strong> concentra más edificaciones en la capa analizada. Diferencia: <strong>${Math.abs(diferencia)}</strong> edificios.</p>
             `;
         }
 
@@ -1914,7 +2160,7 @@
             modoFaunaEducativaActivo = true;
             document.getElementById("panel-fauna").classList.add("visible");
             desactivarInteraccionAnillos();
-            mostrarEstadoMapa("Cargando fauna educativa...");
+            mostrarEstadoMapa("Cargando fauna educativa…");
 
             if (capaHumedal !== null) {
                 mapa.fitBounds(capaHumedal.getBounds());
@@ -2132,7 +2378,7 @@
 
             document.getElementById("fauna-zona").textContent = "Fauna del humedal";
             document.getElementById("fauna-presion").textContent = "Las zonas ecológicas coloreadas son una guía educativa aproximada. Haz clic en una zona del mapa para ver fauna asociada a ese sitio.";
-            lista.innerHTML = "<p class='fauna-cargando'>Cargando especies...</p>";
+            lista.innerHTML = "<p class='fauna-cargando'>Cargando especies…</p>";
 
             const respuesta = await fetch("/api/fauna-todas");
             const datos = await respuesta.json();
@@ -2155,9 +2401,9 @@
             const lista = document.getElementById("lista-fauna");
 
             panel.classList.add("visible");
-            document.getElementById("fauna-zona").textContent = "Consultando zona...";
+            document.getElementById("fauna-zona").textContent = "Consultando zona…";
             document.getElementById("fauna-presion").textContent = "Punto seleccionado: " + latlng.lat.toFixed(5) + ", " + latlng.lng.toFixed(5);
-            lista.innerHTML = "<p class='fauna-cargando'>Buscando especies de la zona...</p>";
+            lista.innerHTML = "<p class='fauna-cargando'>Buscando especies de la zona…</p>";
 
             if (marcadorFauna !== null) {
                 mapa.removeLayer(marcadorFauna);
@@ -2204,8 +2450,8 @@
             const detalle = document.getElementById("punto-detalle");
 
             panel.classList.add("visible");
-            document.getElementById("punto-zona").textContent = "Consultando punto...";
-            detalle.innerHTML = "<p>Calculando distancia, presión y fauna asociada...</p>";
+            document.getElementById("punto-zona").textContent = "Consultando punto…";
+            detalle.innerHTML = "<p>Calculando distancia, presión y fauna asociada…</p>";
 
             const respuesta = await fetch(`/api/fauna-educativa?lat=${latlng.lat}&lon=${latlng.lng}`);
             const datos = await respuesta.json();
@@ -2213,6 +2459,7 @@
             const especies = datos.especies.slice(0, 4).map(function(especie){
                 return especie.nombre_comun;
             }).join(", ");
+            const recomendacion = recomendacionPorPresion(datos.nivel_presion, datos.distancia_humedal_m);
 
             document.getElementById("punto-zona").textContent = datos.zona;
 
@@ -2226,6 +2473,11 @@
                 <p><strong>Hábitat:</strong> ${aprendizaje.habitat}</p>
                 <p><strong>Lectura ambiental:</strong> ${aprendizaje.funcion}</p>
                 <p><strong>Fauna relacionada:</strong> ${especies || "Sin fauna asociada a este punto dentro de la guía educativa"}.</p>
+                <div class="punto-recomendacion">
+                    <span>Recomendación ambiental</span>
+                    <p>${recomendacion}</p>
+                </div>
+                <p class="punto-coordenadas"><strong>Coordenadas:</strong> ${latlng.lat.toFixed(5)}, ${latlng.lng.toFixed(5)}</p>
                 ${datos.especies.length > 0 ? `<button id="abrir-fauna-punto" type="button">Abrir fauna educativa de este punto</button>` : ""}
             `;
 
@@ -2247,6 +2499,7 @@
                         <h3>${datos.zona}</h3>
                         <p><strong>Presión:</strong> ${datos.nivel_presion}</p>
                         <p><strong>Distancia:</strong> ${datos.distancia_humedal_m} m</p>
+                        <p>${recomendacion}</p>
                     </div>
                 `)
                 .openOn(mapa);
@@ -2366,7 +2619,7 @@
         }
 
         async function mostrarZonasCriticasPorRango(){
-            mostrarEstadoMapa("Cargando concentraciones por rango...");
+            mostrarEstadoMapa("Cargando concentraciones por rango…");
 
             try {
                 await activarAnillos();
@@ -2441,8 +2694,8 @@
         }
 
         async function modoConcentracion(){
-            cambiarEstadoBoton("Concentración urbana", "Cargando...", true);
-            mostrarEstadoMapa("Cargando mapa de concentración urbana...");
+            cambiarEstadoBoton("Concentración urbana", "Cargando…", true);
+            mostrarEstadoMapa("Cargando mapa de concentración urbana…");
 
             try {
                 limpiarCapas();
@@ -2458,7 +2711,7 @@
                 actualizarControlCapas();
             } finally {
                 ocultarEstadoMapa();
-                cambiarEstadoBoton("Concentración urbana", "Cargando...", false);
+                cambiarEstadoBoton("Concentración urbana", "Cargando…", false);
             }
         }
 
@@ -2572,29 +2825,37 @@
         }
 
         async function iniciar(){
-            await cargarResumen();
-            await activarAnillos();
-            await activarHumedal();
-            await activarEdificios();
-            await activarHeatmap();
+            mostrarCargaMapa();
+            inicializarOnboarding();
+            restaurarVistaDesdeUrl();
 
-            if (capaHeatmap !== null) {
-                mapa.removeLayer(capaHeatmap);
-            }
+            try {
+                await cargarResumen();
+                await activarAnillos();
+                await activarHumedal();
+                await activarEdificios();
+                await activarHeatmap();
 
-            if (capaHumedal !== null) {
-                capaHumedal.bringToBack();
-            }
-
-            if (capaAnillos !== null) {
-                if (modoFaunaEducativaActivo) {
-                    desactivarInteraccionAnillos();
-                } else {
-                    capaAnillos.bringToFront();
+                if (capaHeatmap !== null) {
+                    mapa.removeLayer(capaHeatmap);
                 }
-            }
 
-            actualizarControlCapas();
+                if (capaHumedal !== null) {
+                    capaHumedal.bringToBack();
+                }
+
+                if (capaAnillos !== null) {
+                    if (modoFaunaEducativaActivo) {
+                        desactivarInteraccionAnillos();
+                    } else {
+                        capaAnillos.bringToFront();
+                    }
+                }
+
+                actualizarControlCapas();
+            } finally {
+                ocultarCargaMapa();
+            }
         }
 
         iniciar();

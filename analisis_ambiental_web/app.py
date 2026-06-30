@@ -1,9 +1,20 @@
 ﻿from flask import Flask, render_template, jsonify, request
-from db import ejecutar_sql, obtener_una_fila, obtener_varias_filas
 from flask import abort
 from flask import redirect, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 from functools import wraps
+from core.config import Config
+from core.security import agregar_cabeceras_seguridad
+from domain.tables import (
+    TABLA_COMENTARIOS,
+    TABLA_EDIFICIOS,
+    TABLA_HUMEDAL,
+    TABLA_RECUPERACION,
+    TABLA_USUARIOS,
+    TABLAS_PERMITIDAS,
+    ZONAS_VALIDAS,
+)
+from repositories.database import ejecutar_sql, obtener_una_fila, obtener_varias_filas
 try:
     from authlib.integrations.flask_client import OAuth
     AUTHLIB_IMPORT_ERROR = ""
@@ -24,10 +35,7 @@ from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
 
 app = Flask(__name__)
-app.config["MAX_CONTENT_LENGTH"] = 1 * 1024 * 1024
-app.config["JSON_SORT_KEYS"] = False
-
-app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "clave-local-de-desarrollo")
+app.config.from_object(Config)
 oauth = OAuth(app) if OAuth is not None else None
 google_oauth_registrado = False
 github_oauth_registrado = False
@@ -105,49 +113,7 @@ registrar_github_oauth()
 registrar_microsoft_oauth()
 
 
-@app.after_request
-def agregar_cabeceras_seguridad(response):
-    csp = (
-        "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/; "
-        "style-src 'self' 'unsafe-inline' https://unpkg.com; "
-        "img-src 'self' data: https://*.tile.openstreetmap.org https://server.arcgisonline.com; "
-        "connect-src 'self'; "
-        "font-src 'self'; "
-        "frame-src 'self' https://www.google.com/recaptcha/ https://recaptcha.google.com/recaptcha/; "
-        "object-src 'none'; "
-        "base-uri 'self'; "
-        "frame-ancestors 'none'"
-    )
-    response.headers["Content-Security-Policy"] = csp
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
-    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(self)"
-
-    if request.is_secure or os.getenv("FORCE_HTTPS", "").lower() == "true":
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-
-    return response
-
-# =========================
-# TABLAS EN POSTGRES
-# =========================
-
-TABLA_HUMEDAL = "humedal_bahia_panama"
-TABLA_EDIFICIOS = "edificios_humedal_1km"
-TABLA_USUARIOS = "usuarios_comentarios"
-TABLA_COMENTARIOS = "comentarios_humedal"
-TABLA_RECUPERACION = "recuperacion_password"
-TABLAS_PERMITIDAS = {TABLA_HUMEDAL, TABLA_EDIFICIOS}
-ZONAS_VALIDAS = {
-    "Fangales intermareales",
-    "Manglar",
-    "Estuario",
-    "Canales",
-    "Borde costero",
-    "Borde urbano",
-}
+app.after_request(agregar_cabeceras_seguridad)
 
 FAUNA_EDUCATIVA = [
     {
@@ -2018,6 +1984,11 @@ def api_diagnostico():
     }
 
     return jsonify(datos)
+
+
+@app.errorhandler(404)
+def pagina_no_encontrada(error):
+    return render_template("404.html"), 404
 
 
 # =========================

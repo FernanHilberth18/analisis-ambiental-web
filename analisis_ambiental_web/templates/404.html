@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Página no encontrada | Observatorio ambiental</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="error-page">
+    <main class="error-shell">
+        <span class="seccion-label">404</span>
+        <h1>Esta ruta no existe en el observatorio</h1>
+        <p>
+            La página que intentas abrir no está disponible. Vuelve al mapa para consultar presión urbana,
+            capas ambientales y fauna educativa del Humedal Bahía de Panamá.
+        </p>
+        <a class="error-action" href="{{ url_for('index') }}">Volver al observatorio</a>
+    </main>
+</body>
+</html>
