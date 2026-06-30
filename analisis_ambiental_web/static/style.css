@@ -2799,15 +2799,21 @@ footer p {
     }
 
     .leaflet-control-layers-expanded {
-        max-width: min(58vw, 210px);
-        max-height: 31dvh;
+        max-width: min(64vw, 220px);
+        max-height: 30dvh;
         overflow: auto;
         padding: 8px 9px !important;
         font-size: 11px;
     }
 
     .leaflet-top.leaflet-right {
-        max-width: 62vw;
+        max-width: 66vw;
+    }
+
+    .leaflet-touch .leaflet-control-layers-toggle {
+        width: 34px !important;
+        height: 34px !important;
+        background-size: 19px 19px !important;
     }
 
     .leaflet-control-layers label {
@@ -2882,8 +2888,7 @@ footer p {
         grid-template-columns: 1fr;
     }
 
-    .panel-punto.visible,
-    .panel-fauna.visible {
+    .panel-punto.visible {
         position: fixed;
         left: 10px;
         right: 10px;
@@ -2894,6 +2899,65 @@ footer p {
         padding: 13px;
         border-radius: 14px 14px 10px 10px;
         box-shadow: 0 24px 70px rgba(6, 32, 42, 0.28);
+    }
+
+    .panel-fauna.visible {
+        position: fixed;
+        left: 10px;
+        right: 10px;
+        bottom: max(10px, env(safe-area-inset-bottom));
+        z-index: 1100;
+        max-height: 46dvh;
+        overflow: auto;
+        padding: 12px;
+        border-radius: 14px 14px 10px 10px;
+        box-shadow: 0 24px 70px rgba(6, 32, 42, 0.28);
+    }
+
+    .panel-fauna-header {
+        position: sticky;
+        top: -12px;
+        z-index: 1;
+        align-items: flex-start;
+        padding: 0 0 8px 0;
+        background: #fbfdf9;
+    }
+
+    .panel-fauna-header span {
+        font-size: 10px;
+    }
+
+    .panel-fauna-header h3 {
+        font-size: 17px;
+        line-height: 1.15;
+    }
+
+    .fauna-contexto {
+        margin-top: 6px;
+        padding: 9px 10px;
+    }
+
+    .fauna-contexto p,
+    .fauna-cargando,
+    .fauna-aprendizaje article p,
+    .animal-card p {
+        font-size: 12px;
+        line-height: 1.35;
+    }
+
+    .fauna-aprendizaje {
+        gap: 8px;
+        margin-top: 9px;
+    }
+
+    .lista-fauna {
+        grid-template-columns: 1fr;
+        gap: 9px;
+        margin-top: 9px;
+    }
+
+    .animal-card {
+        grid-template-rows: 118px 1fr;
     }
 
     .punto-metricas,

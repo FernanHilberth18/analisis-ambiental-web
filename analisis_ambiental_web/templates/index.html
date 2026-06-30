@@ -811,6 +811,27 @@
             });
         }
 
+        function esVistaMovil(){
+            return window.matchMedia("(max-width: 760px)").matches;
+        }
+
+        function cerrarDropdownCapasMovil(){
+            if (!esVistaMovil() || !controlCapas) {
+                return;
+            }
+
+            setTimeout(function(){
+                if (typeof controlCapas.collapse === "function") {
+                    controlCapas.collapse();
+                    return;
+                }
+
+                if (typeof controlCapas._collapse === "function") {
+                    controlCapas._collapse();
+                }
+            }, 120);
+        }
+
         function urlConVista(nombre, presentacion = false){
             const url = new URL(window.location);
             url.searchParams.set("vista", nombre);
@@ -1116,7 +1137,7 @@
 
         function actualizarControlCapas(){
             actualizandoControlCapas = true;
-            const controlColapsado = window.matchMedia("(max-width: 760px)").matches;
+            const controlColapsado = esVistaMovil();
 
             if (controlCapas !== null) {
                 mapa.removeControl(controlCapas);
@@ -1168,6 +1189,7 @@
 
             actualizandoControlCapas = false;
             sincronizarPanelCapas();
+            cerrarDropdownCapasMovil();
         }
 
         function capaVisible(capa){
@@ -1375,6 +1397,7 @@
             }
 
             sincronizarPanelCapas();
+            cerrarDropdownCapasMovil();
         });
 
         mapa.on("overlayremove", function(evento){
@@ -1387,6 +1410,11 @@
             }
 
             sincronizarPanelCapas();
+            cerrarDropdownCapasMovil();
+        });
+
+        mapa.on("baselayerchange", function(){
+            cerrarDropdownCapasMovil();
         });
 
         async function cargarResumen(){
@@ -2238,13 +2266,27 @@
                     })
                 });
 
-                circulo.bindPopup(contenidoPopupZonaEcologica(zona));
+                if (!esVistaMovil()) {
+                    circulo.bindPopup(contenidoPopupZonaEcologica(zona));
+                }
+
                 circulo.on("click", function(evento){
+                    if (esVistaMovil()) {
+                        mapa.closePopup();
+                    }
+
                     consultarFaunaEducativa(evento.latlng, zona.nombre);
                 });
 
-                etiqueta.bindPopup(contenidoPopupZonaEcologica(zona));
+                if (!esVistaMovil()) {
+                    etiqueta.bindPopup(contenidoPopupZonaEcologica(zona));
+                }
+
                 etiqueta.on("click", function(){
+                    if (esVistaMovil()) {
+                        mapa.closePopup();
+                    }
+
                     consultarFaunaEducativa(L.latLng(zona.lat, zona.lon), zona.nombre);
                 });
 
@@ -2509,6 +2551,7 @@
             const panel = document.getElementById("panel-fauna");
             const lista = document.getElementById("lista-fauna");
 
+            mapa.closePopup();
             panel.classList.add("visible");
             document.getElementById("fauna-zona").textContent = "Consultando zona…";
             document.getElementById("fauna-presion").textContent = "Punto seleccionado: " + latlng.lat.toFixed(5) + ", " + latlng.lng.toFixed(5);
@@ -2551,7 +2594,11 @@
                     <p><strong>Especies mostradas:</strong> ${datos.especies.length}</p>
                     <p><strong>Presión:</strong> ${datos.nivel_presion}</p>
                 </div>
-            `).openPopup();
+            `);
+
+            if (!esVistaMovil()) {
+                marcadorFauna.openPopup();
+            }
         }
 
         async function consultarPuntoAnalisis(latlng){
