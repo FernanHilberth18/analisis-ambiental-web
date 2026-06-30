@@ -288,12 +288,15 @@ summary:focus-visible {
 }
 
 .badge {
+    max-width: 100%;
     padding: 11px 16px;
     border-radius: 999px;
     background: rgba(255, 255, 255, 0.16);
     border: 1px solid rgba(255, 255, 255, 0.28);
     font-weight: 800;
-    white-space: nowrap;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+    white-space: normal;
 }
 
 .hero-status span {
@@ -2645,7 +2648,10 @@ footer p {
     }
 
     .hero-status strong {
-        font-size: 13px;
+        width: 100%;
+        justify-content: flex-start;
+        padding: 9px 12px;
+        font-size: 12px;
     }
 
     .modo-nav {
@@ -2793,10 +2799,33 @@ footer p {
     }
 
     .leaflet-control-layers-expanded {
-        max-width: min(78vw, 260px);
-        max-height: 42dvh;
+        max-width: min(58vw, 210px);
+        max-height: 31dvh;
         overflow: auto;
-        font-size: 12px;
+        padding: 8px 9px !important;
+        font-size: 11px;
+    }
+
+    .leaflet-top.leaflet-right {
+        max-width: 62vw;
+    }
+
+    .leaflet-control-layers label {
+        display: flex !important;
+        align-items: flex-start;
+        gap: 5px;
+        margin-bottom: 5px !important;
+        font-size: 11px !important;
+        line-height: 1.18 !important;
+    }
+
+    .leaflet-control-layers input {
+        flex: 0 0 auto;
+        margin-top: 1px;
+    }
+
+    .leaflet-control-layers-list {
+        line-height: 1.2 !important;
     }
 
     .onboarding-pasos {

@@ -742,6 +742,7 @@
         let modoPresentacionActivo = false;
         let vistaActual = "mapa";
         let vistaAntesPresentacion = "mapa";
+        let historialInternoListo = false;
 
         function iniciarAnimacionesInterfaz(){
             if (!("IntersectionObserver" in window) || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
@@ -810,6 +811,41 @@
             });
         }
 
+        function urlConVista(nombre, presentacion = false){
+            const url = new URL(window.location);
+            url.searchParams.set("vista", nombre);
+
+            if (presentacion) {
+                url.searchParams.set("presentacion", "1");
+            } else {
+                url.searchParams.delete("presentacion");
+            }
+
+            return url;
+        }
+
+        function estadoHistoria(nombre = vistaActual, presentacion = modoPresentacionActivo){
+            return {
+                vista: nombre || "mapa",
+                presentacion: Boolean(presentacion)
+            };
+        }
+
+        function reemplazarEstadoActual(nombre = vistaActual, presentacion = modoPresentacionActivo){
+            history.replaceState(estadoHistoria(nombre, presentacion), "", urlConVista(nombre, presentacion));
+        }
+
+        function empujarEstadoVista(nombre, presentacion = false){
+            const estadoActual = history.state || {};
+
+            if (estadoActual.vista === nombre && Boolean(estadoActual.presentacion) === Boolean(presentacion)) {
+                reemplazarEstadoActual(nombre, presentacion);
+                return;
+            }
+
+            history.pushState(estadoHistoria(nombre, presentacion), "", urlConVista(nombre, presentacion));
+        }
+
         function actualizarBotonesPresentacion(){
             document.querySelectorAll(".js-presentacion-toggle").forEach(function(boton){
                 boton.classList.toggle("boton-activo", modoPresentacionActivo);
@@ -843,9 +879,14 @@
             document.body.classList.toggle("modo-presentacion", modoPresentacionActivo);
             actualizarBotonesPresentacion();
 
+            if (modoPresentacionActivo) {
+                empujarEstadoVista("mapa", true);
+            }
+
             if (!modoPresentacionActivo) {
                 const vistaDestino = vistaAntesPresentacion || "mapa";
-                cambiarVista(vistaDestino, obtenerBotonVista(vistaDestino));
+                cambiarVista(vistaDestino, obtenerBotonVista(vistaDestino), false);
+                reemplazarEstadoActual(vistaDestino, false);
             }
 
             setTimeout(function(){
@@ -924,9 +965,7 @@
             }
 
             if (actualizarUrl) {
-                const url = new URL(window.location);
-                url.searchParams.set("vista", nombre);
-                history.replaceState(null, "", url);
+                empujarEstadoVista(nombre, false);
             }
 
             vistaActual = nombre;
@@ -1077,6 +1116,7 @@
 
         function actualizarControlCapas(){
             actualizandoControlCapas = true;
+            const controlColapsado = window.matchMedia("(max-width: 760px)").matches;
 
             if (controlCapas !== null) {
                 mapa.removeControl(controlCapas);
@@ -1121,7 +1161,7 @@
                 capasBase,
                 capasOverlay,
                 {
-                    collapsed: false,
+                    collapsed: controlColapsado,
                     position: "topright"
                 }
             ).addTo(mapa);
@@ -1301,6 +1341,28 @@
 
             cambiarVista(vista, boton, false);
         }
+
+        function inicializarHistorialInterno(){
+            if (historialInternoListo) {
+                return;
+            }
+
+            historialInternoListo = true;
+            reemplazarEstadoActual(vistaActual, false);
+        }
+
+        window.addEventListener("popstate", function(evento){
+            const estado = evento.state || estadoHistoria("mapa", false);
+            const vistaDestino = ["mapa", "analisis", "metodologia"].includes(estado.vista) ? estado.vista : "mapa";
+
+            if (modoPresentacionActivo) {
+                modoPresentacionActivo = false;
+                document.body.classList.remove("modo-presentacion");
+                actualizarBotonesPresentacion();
+            }
+
+            cambiarVista(vistaDestino, obtenerBotonVista(vistaDestino), false);
+        });
 
         function cerrarPanelPunto(){
             document.getElementById("panel-punto").classList.remove("visible");
@@ -2875,6 +2937,7 @@
             mostrarCargaMapa();
             inicializarOnboarding();
             restaurarVistaDesdeUrl();
+            inicializarHistorialInterno();
             actualizarBotonesPresentacion();
 
             try {
