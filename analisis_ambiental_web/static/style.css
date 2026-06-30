@@ -25,10 +25,16 @@
 
 html {
     scroll-behavior: smooth;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
 }
 
 body {
+    width: 100%;
+    max-width: 100%;
     margin: 0;
+    overflow-x: hidden;
     font-family: "Aptos", "Segoe UI", Arial, Helvetica, sans-serif;
     color: var(--ink);
     background:
@@ -697,7 +703,7 @@ summary:focus-visible {
 
 .map-toolbar {
     display: grid;
-    grid-template-columns: minmax(330px, 1.1fr) minmax(210px, 0.5fr) minmax(420px, 1.2fr);
+    grid-template-columns: minmax(0, 1.1fr) minmax(160px, 0.5fr) minmax(0, 1.2fr);
     gap: 10px;
     padding: 10px;
     margin: 0 0 12px 0;
@@ -710,7 +716,7 @@ summary:focus-visible {
 
 .panel-capas-propio {
     display: grid;
-    grid-template-columns: minmax(210px, 1.2fr) repeat(7, minmax(115px, 1fr));
+    grid-template-columns: minmax(170px, 1.2fr) repeat(auto-fit, minmax(110px, 1fr));
     gap: 8px;
     align-items: center;
     padding: 10px;
@@ -2573,7 +2579,15 @@ footer p {
 }
 
 @media (max-width: 760px) {
+    :root {
+        --page-width: calc(100% - 14px);
+    }
+
+    html,
     body {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
         font-size: 15px;
     }
 
@@ -2588,15 +2602,18 @@ footer p {
     .metodologia-detalle,
     .fuentes-alcance,
     footer {
-        width: calc(100% - 20px);
+        width: var(--page-width);
+        max-width: var(--page-width);
     }
 
     .hero {
-        padding: 16px;
+        padding: 14px;
         align-items: flex-start;
         flex-direction: column;
-        gap: 12px;
-        margin-top: 10px;
+        gap: 10px;
+        min-height: 0;
+        margin-top: 7px;
+        border-radius: 8px;
     }
 
     .hero-status {
@@ -2611,12 +2628,24 @@ footer p {
     }
 
     .hero h1 {
-        font-size: clamp(26px, 9vw, 38px);
-        line-height: 1.02;
+        max-width: 100%;
+        margin-top: 9px;
+        font-size: clamp(24px, 8.4vw, 34px);
+        line-height: 1.04;
     }
 
     .hero p {
-        font-size: 15px;
+        margin-top: 10px;
+        font-size: 14px;
+        line-height: 1.45;
+    }
+
+    .etiqueta {
+        font-size: 10px;
+    }
+
+    .hero-status strong {
+        font-size: 13px;
     }
 
     .modo-nav {
@@ -2631,7 +2660,7 @@ footer p {
 
     .modo-boton {
         flex: 0 0 auto;
-        min-width: max-content;
+        min-width: 0;
         min-height: 38px;
         padding: 9px 11px;
         font-size: 13px;
@@ -2660,15 +2689,18 @@ footer p {
         gap: 12px;
         margin-top: 12px;
         margin-bottom: 22px;
+        min-width: 0;
     }
 
     .map-section {
         order: 1;
-        padding: 10px;
+        min-width: 0;
+        padding: 8px;
     }
 
     .panel {
         order: 2;
+        min-width: 0;
         padding: 14px;
     }
 
@@ -2683,7 +2715,7 @@ footer p {
     }
 
     .map-header h2 {
-        font-size: 22px;
+        font-size: 20px;
     }
 
     .map-header p {
@@ -2696,31 +2728,33 @@ footer p {
     }
 
     .map-toolbar {
-        display: flex;
+        display: grid;
+        grid-template-columns: 1fr;
         gap: 8px;
-        overflow-x: auto;
+        overflow: visible;
         padding: 8px;
         margin-bottom: 10px;
-        scroll-snap-type: x proximity;
-        scrollbar-width: thin;
     }
 
     .toolbar-group {
-        flex: 0 0 min(78vw, 320px);
-        display: flex;
-        align-items: stretch;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 7px;
-        overflow-x: auto;
-        scroll-snap-align: start;
-        scrollbar-width: none;
+        min-width: 0;
+        overflow: visible;
     }
 
     .toolbar-group button {
-        flex: 0 0 auto;
+        width: 100%;
         min-width: 0;
-        padding: 9px 11px;
+        padding: 9px 8px;
         font-size: 12px;
-        white-space: nowrap;
+        line-height: 1.15;
+        white-space: normal;
+    }
+
+    .toolbar-group span {
+        grid-column: 1 / -1;
     }
 
     .toolbar-group::-webkit-scrollbar,
@@ -2729,33 +2763,32 @@ footer p {
     }
 
     .panel-capas-propio {
-        display: flex;
-        align-items: stretch;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 8px;
-        overflow-x: auto;
+        min-width: 0;
+        overflow: visible;
         padding: 8px;
         margin-bottom: 10px;
-        scroll-snap-type: x proximity;
-        scrollbar-width: none;
     }
 
     .panel-capas-propio > div {
-        flex: 0 0 210px;
-        scroll-snap-align: start;
+        grid-column: 1 / -1;
+        min-width: 0;
     }
 
     .panel-capas-propio label {
-        flex: 0 0 auto;
+        min-width: 0;
         min-height: 36px;
-        padding: 8px 10px;
-        font-size: 12px;
-        white-space: nowrap;
-        scroll-snap-align: start;
+        padding: 8px;
+        font-size: 11px;
+        line-height: 1.15;
+        white-space: normal;
     }
 
     #mapa {
-        min-height: 440px;
-        height: 62dvh;
+        min-height: 360px;
+        height: 52dvh;
         border-radius: 8px;
     }
 
