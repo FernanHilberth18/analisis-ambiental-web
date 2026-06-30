@@ -348,6 +348,27 @@ summary:focus-visible {
     transform: translateY(-1px);
 }
 
+.salir-presentacion {
+    display: none;
+    position: fixed;
+    top: max(14px, env(safe-area-inset-top));
+    right: 14px;
+    z-index: 1800;
+    min-height: 40px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: #07384b;
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    box-shadow: 0 18px 38px rgba(5, 28, 39, 0.28);
+}
+
+.modo-presentacion .salir-presentacion {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
 .modo-boton {
     flex: 1 1 210px;
     color: #0f4c4a;
@@ -2441,6 +2462,7 @@ footer p {
 
 .modo-presentacion .map-section {
     min-height: calc(100dvh - 20px);
+    padding-top: 58px;
 }
 
 .modo-presentacion #mapa {
@@ -2551,6 +2573,10 @@ footer p {
 }
 
 @media (max-width: 760px) {
+    body {
+        font-size: 15px;
+    }
+
     .hero,
     .layout,
     .modo-nav,
@@ -2566,26 +2592,102 @@ footer p {
     }
 
     .hero {
-        padding: 22px;
+        padding: 16px;
         align-items: flex-start;
         flex-direction: column;
+        gap: 12px;
+        margin-top: 10px;
     }
 
     .hero-status {
+        width: 100%;
         min-width: 0;
         justify-items: start;
+        padding: 10px 12px;
     }
 
     .hero-status span {
         text-align: left;
     }
 
+    .hero h1 {
+        font-size: clamp(26px, 9vw, 38px);
+        line-height: 1.02;
+    }
+
+    .hero p {
+        font-size: 15px;
+    }
+
+    .modo-nav {
+        top: 0;
+        flex-wrap: nowrap;
+        gap: 6px;
+        margin-top: 8px;
+        overflow-x: auto;
+        padding: 7px;
+        scrollbar-width: thin;
+    }
+
+    .modo-boton {
+        flex: 0 0 auto;
+        min-width: max-content;
+        min-height: 38px;
+        padding: 9px 11px;
+        font-size: 13px;
+        white-space: nowrap;
+    }
+
+    .quick-links {
+        gap: 7px;
+        margin-top: 8px;
+        padding-bottom: 6px;
+    }
+
+    .quick-links a,
+    .quick-links button {
+        min-height: 32px;
+        padding: 7px 10px;
+        font-size: 12px;
+    }
+
+    .layout.vista-activa {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .layout {
+        gap: 12px;
+        margin-top: 12px;
+        margin-bottom: 22px;
+    }
+
+    .map-section {
+        order: 1;
+        padding: 10px;
+    }
+
+    .panel {
+        order: 2;
+        padding: 14px;
+    }
+
     .stats {
         grid-template-columns: 1fr;
+        gap: 8px;
     }
 
     .map-header {
         flex-direction: column;
+        gap: 10px;
+    }
+
+    .map-header h2 {
+        font-size: 22px;
+    }
+
+    .map-header p {
+        font-size: 13px;
     }
 
     .map-actions,
@@ -2593,23 +2695,86 @@ footer p {
         width: 100%;
     }
 
+    .map-toolbar {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        padding: 8px;
+        margin-bottom: 10px;
+        scroll-snap-type: x proximity;
+        scrollbar-width: thin;
+    }
+
     .toolbar-group {
-        display: grid;
-        grid-template-columns: 1fr;
+        flex: 0 0 min(78vw, 320px);
+        display: flex;
+        align-items: stretch;
+        gap: 7px;
+        overflow-x: auto;
+        scroll-snap-align: start;
+        scrollbar-width: none;
     }
 
     .toolbar-group button {
-        width: 100%;
+        flex: 0 0 auto;
         min-width: 0;
+        padding: 9px 11px;
+        font-size: 12px;
+        white-space: nowrap;
+    }
+
+    .toolbar-group::-webkit-scrollbar,
+    .panel-capas-propio::-webkit-scrollbar {
+        display: none;
+    }
+
+    .panel-capas-propio {
+        display: flex;
+        align-items: stretch;
+        gap: 8px;
+        overflow-x: auto;
+        padding: 8px;
+        margin-bottom: 10px;
+        scroll-snap-type: x proximity;
+        scrollbar-width: none;
+    }
+
+    .panel-capas-propio > div {
+        flex: 0 0 210px;
+        scroll-snap-align: start;
+    }
+
+    .panel-capas-propio label {
+        flex: 0 0 auto;
+        min-height: 36px;
+        padding: 8px 10px;
+        font-size: 12px;
+        white-space: nowrap;
+        scroll-snap-align: start;
     }
 
     #mapa {
-        min-height: 420px;
-        height: 58vh;
+        min-height: 440px;
+        height: 62dvh;
+        border-radius: 8px;
+    }
+
+    .leaflet-control-layers-expanded {
+        max-width: min(78vw, 260px);
+        max-height: 42dvh;
+        overflow: auto;
+        font-size: 12px;
     }
 
     .onboarding-pasos {
         grid-template-columns: 1fr;
+    }
+
+    .onboarding-modal {
+        width: calc(100% - 20px);
+        max-height: 88dvh;
+        overflow: auto;
+        padding: 16px;
     }
 
     .onboarding-actions {
@@ -2621,11 +2786,18 @@ footer p {
     }
 
     .panel-fauna-header {
-        flex-direction: column;
+        flex-direction: row;
+        gap: 10px;
     }
 
     .panel-fauna-header button {
-        width: 100%;
+        flex: 0 0 auto;
+        width: auto;
+    }
+
+    .panel-punto-header h3,
+    .panel-fauna-header h3 {
+        font-size: 19px;
     }
 
     .animal-card-top {
@@ -2643,7 +2815,6 @@ footer p {
         grid-template-columns: 1fr;
     }
 
-    .panel-capas-propio,
     .fuentes-grid,
     .validacion-datos {
         grid-template-columns: 1fr;
@@ -2654,11 +2825,12 @@ footer p {
         position: fixed;
         left: 10px;
         right: 10px;
-        bottom: 10px;
+        bottom: max(10px, env(safe-area-inset-bottom));
         z-index: 1100;
-        max-height: 66dvh;
+        max-height: 58dvh;
         overflow: auto;
-        border-radius: 12px;
+        padding: 13px;
+        border-radius: 14px 14px 10px 10px;
         box-shadow: 0 24px 70px rgba(6, 32, 42, 0.28);
     }
 
@@ -2706,8 +2878,8 @@ footer p {
     }
 
     .modo-presentacion #mapa {
-        height: calc(100dvh - 250px);
-        min-height: 430px;
+        height: calc(100dvh - 180px);
+        min-height: 440px;
     }
 }
 
