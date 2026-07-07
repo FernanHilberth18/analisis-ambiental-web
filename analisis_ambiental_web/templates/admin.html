@@ -82,6 +82,12 @@
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <button class="boton-secundario" type="submit">Rechazar</button>
                                 </form>
+                                <form action="{{ url_for('moderar_comentario', comentario_id=comentario.id, accion='eliminar') }}" method="post">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button class="icon-button danger" type="submit" title="Eliminar definitivamente" aria-label="Eliminar definitivamente">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 21c-1.1 0-2-.9-2-2V8h14v11c0 1.1-.9 2-2 2H7zM9 4h6l1 2h4v2H4V6h4l1-2zm0 6v8h2v-8H9zm4 0v8h2v-8h-2z"/></svg>
+                                    </button>
+                                </form>
                             </div>
                         </article>
                     {% endfor %}

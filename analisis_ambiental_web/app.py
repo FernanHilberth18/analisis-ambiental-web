@@ -1315,8 +1315,16 @@ def moderar_comentario(comentario_id, accion):
     if rechazar_si_csrf_invalido():
         return redirect(url_for("panel_admin"))
 
-    if accion not in {"aprobar", "rechazar"}:
+    if accion not in {"aprobar", "rechazar", "eliminar"}:
         abort(404)
+
+    if accion == "eliminar":
+        eliminado = ejecutar_sql(
+            f"DELETE FROM {TABLA_COMENTARIOS} WHERE id = :comentario_id;",
+            {"comentario_id": comentario_id}
+        )
+        guardar_mensaje("Comentario eliminado definitivamente." if eliminado else "No se pudo eliminar el comentario.")
+        return redirect(url_for("panel_admin"))
 
     nuevo_estado = "aprobado" if accion == "aprobar" else "rechazado"
     administrador = usuario_actual()
