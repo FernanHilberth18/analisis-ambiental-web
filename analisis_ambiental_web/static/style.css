@@ -2862,9 +2862,37 @@ footer p {
     }
 
     .leaflet-touch .leaflet-control-layers-toggle {
-        width: 34px !important;
-        height: 34px !important;
-        background-size: 19px 19px !important;
+        width: auto !important;
+        min-width: 92px !important;
+        height: 38px !important;
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        padding: 0 12px !important;
+        border-radius: 999px !important;
+        color: #07384b !important;
+        background: #ffffff !important;
+        background-image: none !important;
+        font-size: 13px;
+        font-weight: 900;
+        text-decoration: none;
+        box-shadow: 0 10px 24px rgba(6, 32, 42, 0.18);
+    }
+
+    .leaflet-touch .leaflet-control-layers-toggle::before {
+        content: "☰";
+        font-size: 15px;
+        line-height: 1;
+    }
+
+    .leaflet-touch .leaflet-control-layers-toggle::after {
+        content: "Capas";
+        line-height: 1;
+    }
+
+    .leaflet-control-layers-expanded .leaflet-control-layers-toggle {
+        display: none !important;
     }
 
     .leaflet-control-layers label {
