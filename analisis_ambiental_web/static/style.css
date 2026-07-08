@@ -2941,37 +2941,89 @@ footer p {
 
     .panel-punto.visible {
         position: fixed;
-        left: 10px;
-        right: 10px;
-        bottom: max(10px, env(safe-area-inset-bottom));
-        z-index: 1100;
-        max-height: 58dvh;
+        left: 12px;
+        right: 12px;
+        bottom: max(12px, env(safe-area-inset-bottom));
+        z-index: 1050;
+        max-height: min(42dvh, 310px);
         overflow: auto;
-        padding: 13px;
-        border-radius: 14px 14px 10px 10px;
+        overscroll-behavior: contain;
+        padding: 12px;
+        border-top-width: 4px;
+        border-radius: 12px;
         box-shadow: 0 24px 70px rgba(6, 32, 42, 0.28);
     }
 
     .panel-fauna.visible {
         position: fixed;
-        left: 10px;
-        right: 10px;
-        bottom: max(10px, env(safe-area-inset-bottom));
-        z-index: 1100;
-        max-height: 46dvh;
-        overflow: auto;
-        padding: 12px;
-        border-radius: 14px 14px 10px 10px;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 1060;
+        display: flex;
+        flex-direction: column;
+        max-height: min(52dvh, 430px);
+        overflow: hidden;
+        margin: 0;
+        padding: 12px 12px max(12px, env(safe-area-inset-bottom));
+        border-right: 0;
+        border-bottom: 0;
+        border-left: 0;
+        border-top-width: 4px;
+        border-radius: 16px 16px 0 0;
         box-shadow: 0 24px 70px rgba(6, 32, 42, 0.28);
     }
 
     .panel-fauna-header {
         position: sticky;
-        top: -12px;
-        z-index: 1;
+        top: 0;
+        z-index: 2;
         align-items: flex-start;
+        flex: 0 0 auto;
         padding: 0 0 8px 0;
         background: #fbfdf9;
+    }
+
+    .panel-fauna-body {
+        min-height: 0;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding-right: 2px;
+    }
+
+    .panel-punto-header {
+        gap: 10px;
+    }
+
+    .panel-punto-header button,
+    .panel-fauna-header button {
+        min-height: 32px;
+        padding: 7px 10px;
+        font-size: 12px;
+    }
+
+    .panel-punto-header span {
+        font-size: 10px;
+    }
+
+    .panel-punto-header h3 {
+        font-size: 16px;
+        line-height: 1.15;
+    }
+
+    .punto-detalle {
+        margin-top: 8px;
+    }
+
+    .punto-detalle p,
+    .punto-recomendacion p,
+    .punto-coordenadas {
+        font-size: 12px;
+        line-height: 1.32;
+    }
+
+    .punto-recomendacion {
+        padding: 9px 10px;
     }
 
     .panel-fauna-header span {
@@ -3009,6 +3061,39 @@ footer p {
 
     .animal-card {
         grid-template-rows: 118px 1fr;
+    }
+
+    .leaflet-popup {
+        max-width: calc(100vw - 40px) !important;
+    }
+
+    .leaflet-popup-content-wrapper {
+        border-radius: 10px !important;
+    }
+
+    .leaflet-popup-content {
+        width: auto !important;
+        max-width: min(240px, calc(100vw - 70px));
+        max-height: 34dvh;
+        margin: 10px 12px !important;
+        overflow: auto;
+    }
+
+    .popup h3 {
+        margin-bottom: 6px;
+        font-size: 15px;
+        line-height: 1.15;
+    }
+
+    .popup p {
+        font-size: 12px;
+        line-height: 1.32;
+    }
+
+    .popup img {
+        width: 180px;
+        height: 96px;
+        margin-bottom: 8px;
     }
 
     .punto-metricas,

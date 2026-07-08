@@ -277,18 +277,20 @@
                     <button type="button" onclick="cerrarModoFaunaEducativa()">Cerrar</button>
                 </div>
 
-                <div class="fauna-contexto">
-                    <p id="fauna-presion">Selecciona una zona del humedal para explorar especies.</p>
-                </div>
+                <div class="panel-fauna-body">
+                    <div class="fauna-contexto">
+                        <p id="fauna-presion">Selecciona una zona del humedal para explorar especies.</p>
+                    </div>
 
-                <div id="fauna-aprendizaje" class="fauna-aprendizaje"></div>
+                    <div id="fauna-aprendizaje" class="fauna-aprendizaje"></div>
 
-                <div id="lista-fauna" class="lista-fauna"></div>
+                    <div id="lista-fauna" class="lista-fauna"></div>
 
-                <div class="retos-fauna">
-                    <h4>Retos de exploración</h4>
-                    <div id="retos-lista"></div>
-                    <p id="reto-respuesta"></p>
+                    <div class="retos-fauna">
+                        <h4>Retos de exploración</h4>
+                        <div id="retos-lista"></div>
+                        <p id="reto-respuesta"></p>
+                    </div>
                 </div>
             </aside>
         </section>
@@ -2308,6 +2310,7 @@
 
         async function activarModoFaunaEducativa(){
             modoFaunaEducativaActivo = true;
+            cerrarPanelPunto();
             document.getElementById("panel-fauna").classList.add("visible");
             desactivarInteraccionAnillos();
             mostrarEstadoMapa("Cargando fauna educativa…");
@@ -2550,6 +2553,7 @@
             const panel = document.getElementById("panel-fauna");
             const lista = document.getElementById("lista-fauna");
 
+            cerrarPanelPunto();
             mapa.closePopup();
             panel.classList.add("visible");
             document.getElementById("fauna-zona").textContent = "Consultando zona…";
@@ -2641,23 +2645,28 @@
             if (botonFaunaPunto) {
                 botonFaunaPunto.addEventListener("click", function(){
                     modoFaunaEducativaActivo = true;
+                    cerrarPanelPunto();
                     document.getElementById("panel-fauna").classList.add("visible");
                     desactivarInteraccionAnillos();
                     consultarFaunaEducativa(latlng);
                 });
             }
 
-            L.popup()
-                .setLatLng(latlng)
-                .setContent(`
-                    <div class="popup">
-                        <h3>${datos.zona}</h3>
-                        <p><strong>Presión:</strong> ${datos.nivel_presion}</p>
-                        <p><strong>Distancia:</strong> ${datos.distancia_humedal_m} m</p>
-                        <p>${recomendacion}</p>
-                    </div>
-                `)
-                .openOn(mapa);
+            if (!esVistaMovil()) {
+                L.popup()
+                    .setLatLng(latlng)
+                    .setContent(`
+                        <div class="popup">
+                            <h3>${datos.zona}</h3>
+                            <p><strong>Presión:</strong> ${datos.nivel_presion}</p>
+                            <p><strong>Distancia:</strong> ${datos.distancia_humedal_m} m</p>
+                            <p>${recomendacion}</p>
+                        </div>
+                    `)
+                    .openOn(mapa);
+            } else {
+                mapa.closePopup();
+            }
         }
 
         mapa.on("click", function(evento){
