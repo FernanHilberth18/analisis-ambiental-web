@@ -2418,6 +2418,10 @@ tbody tr:hover {
     line-height: 1.42 !important;
 }
 
+.leaflet-layers-close {
+    display: none;
+}
+
 .zona-eco-label {
     border: 0;
     background: transparent;
