@@ -816,7 +816,42 @@
             return window.matchMedia("(max-width: 760px)").matches;
         }
 
-        function cerrarDropdownCapasMovil(){
+        function opcionesPopupMapa(){
+            if (!esVistaMovil()) {
+                return {};
+            }
+
+            return {
+                maxWidth: 190,
+                minWidth: 0,
+                autoPan: true,
+                keepInView: true
+            };
+        }
+
+        function enfocarPanelMovil(panel){
+            if (!esVistaMovil() || !panel) {
+                return;
+            }
+
+            setTimeout(function(){
+                panel.scrollIntoView({
+                    behavior: "smooth",
+                    block: "nearest"
+                });
+            }, 80);
+        }
+
+        function dropdownCapasMovilAbierto(){
+            if (!esVistaMovil() || !controlCapas) {
+                return false;
+            }
+
+            const contenedor = controlCapas.getContainer();
+            return Boolean(contenedor && contenedor.classList.contains("leaflet-control-layers-expanded"));
+        }
+
+        function cerrarDropdownCapasMovil(demora = 120){
             if (!esVistaMovil() || !controlCapas) {
                 return;
             }
@@ -830,7 +865,49 @@
                 if (typeof controlCapas._collapse === "function") {
                     controlCapas._collapse();
                 }
-            }, 120);
+            }, demora);
+        }
+
+        function prepararControlCapasMovil(){
+            if (!controlCapas) {
+                return;
+            }
+
+            const contenedor = controlCapas.getContainer();
+
+            if (!contenedor || contenedor.dataset.cierreMovilListo === "1") {
+                return;
+            }
+
+            const cerrar = document.createElement("button");
+            cerrar.type = "button";
+            cerrar.className = "leaflet-layers-close";
+            cerrar.setAttribute("aria-label", "Cerrar capas");
+            cerrar.textContent = "Cerrar";
+
+            cerrar.addEventListener("click", function(evento){
+                evento.preventDefault();
+                evento.stopPropagation();
+                cerrarDropdownCapasMovil(0);
+            });
+
+            contenedor.insertBefore(cerrar, contenedor.firstChild);
+
+            const botonToggle = contenedor.querySelector(".leaflet-control-layers-toggle");
+
+            if (botonToggle) {
+                botonToggle.addEventListener("click", function(evento){
+                    if (!esVistaMovil() || !contenedor.classList.contains("leaflet-control-layers-expanded")) {
+                        return;
+                    }
+
+                    evento.preventDefault();
+                    evento.stopPropagation();
+                    cerrarDropdownCapasMovil(0);
+                }, true);
+            }
+
+            contenedor.dataset.cierreMovilListo = "1";
         }
 
         function urlConVista(nombre, presentacion = false){
@@ -1188,6 +1265,7 @@
                 }
             ).addTo(mapa);
 
+            prepararControlCapasMovil();
             actualizandoControlCapas = false;
             sincronizarPanelCapas();
             cerrarDropdownCapasMovil();
@@ -2087,7 +2165,7 @@
                             <p><strong>Hectáreas:</strong> ${feature.properties.hectares}</p>
                             <p><strong>Año:</strong> ${feature.properties.estab_yr}</p>
                         </div>
-                    `);
+                    `, opcionesPopupMapa());
                 }
             }).addTo(mapa);
 
@@ -2118,7 +2196,7 @@
                     `;
 
                     feature.properties.popup_html = popupHtml;
-                    layer.bindPopup(popupHtml);
+                    layer.bindPopup(popupHtml, opcionesPopupMapa());
                 }
             }).addTo(mapa);
 
@@ -2184,7 +2262,7 @@
                 }
 
                 if (!layer.getPopup() && layer.feature.properties.popup_html) {
-                    layer.bindPopup(layer.feature.properties.popup_html);
+                    layer.bindPopup(layer.feature.properties.popup_html, opcionesPopupMapa());
                 }
             });
         }
@@ -2311,7 +2389,9 @@
         async function activarModoFaunaEducativa(){
             modoFaunaEducativaActivo = true;
             cerrarPanelPunto();
-            document.getElementById("panel-fauna").classList.add("visible");
+            const panelFauna = document.getElementById("panel-fauna");
+            panelFauna.classList.add("visible");
+            enfocarPanelMovil(panelFauna);
             desactivarInteraccionAnillos();
             mostrarEstadoMapa("Cargando fauna educativa…");
 
@@ -2381,7 +2461,7 @@
 
             mapa.setView([especie.lat, especie.lon], 14);
 
-            L.popup()
+            L.popup(opcionesPopupMapa())
                 .setLatLng([especie.lat, especie.lon])
                 .setContent(contenidoPopupEspecie(especie))
                 .openOn(mapa);
@@ -2518,7 +2598,7 @@
                     fillOpacity: 0.95
                 });
 
-                marcador.bindPopup(contenidoPopupEspecie(especie));
+                marcador.bindPopup(contenidoPopupEspecie(especie), opcionesPopupMapa());
                 marcador.addTo(capaFaunaEducativa);
             });
 
@@ -2556,6 +2636,7 @@
             cerrarPanelPunto();
             mapa.closePopup();
             panel.classList.add("visible");
+            enfocarPanelMovil(panel);
             document.getElementById("fauna-zona").textContent = "Consultando zona…";
             document.getElementById("fauna-presion").textContent = "Punto seleccionado: " + latlng.lat.toFixed(5) + ", " + latlng.lng.toFixed(5);
             lista.innerHTML = "<p class='fauna-cargando'>Buscando especies de la zona…</p>";
@@ -2597,7 +2678,7 @@
                     <p><strong>Especies mostradas:</strong> ${datos.especies.length}</p>
                     <p><strong>Presión:</strong> ${datos.nivel_presion}</p>
                 </div>
-            `);
+            `, opcionesPopupMapa());
 
             if (!esVistaMovil()) {
                 marcadorFauna.openPopup();
@@ -2609,6 +2690,7 @@
             const detalle = document.getElementById("punto-detalle");
 
             panel.classList.add("visible");
+            enfocarPanelMovil(panel);
             document.getElementById("punto-zona").textContent = "Consultando punto…";
             detalle.innerHTML = "<p>Calculando distancia, presión y fauna asociada…</p>";
 
@@ -2653,7 +2735,7 @@
             }
 
             if (!esVistaMovil()) {
-                L.popup()
+                L.popup(opcionesPopupMapa())
                     .setLatLng(latlng)
                     .setContent(`
                         <div class="popup">
@@ -2670,6 +2752,11 @@
         }
 
         mapa.on("click", function(evento){
+            if (dropdownCapasMovilAbierto()) {
+                cerrarDropdownCapasMovil(0);
+                return;
+            }
+
             if (modoFaunaEducativaActivo) {
                 consultarFaunaEducativa(evento.latlng);
                 return;
@@ -2704,7 +2791,7 @@
                             <p><strong>GID:</strong> ${feature.properties.gid}</p>
                             <p><strong>FID:</strong> ${feature.properties.fid}</p>
                         </div>
-                    `);
+                    `, opcionesPopupMapa());
                 }
             }).addTo(mapa);
 
@@ -2763,7 +2850,7 @@
                 if (puntoCritico.lat && puntoCritico.lon) {
                     mapa.setView([puntoCritico.lat, puntoCritico.lon], 15);
 
-                    L.popup()
+                    L.popup(opcionesPopupMapa())
                         .setLatLng([puntoCritico.lat, puntoCritico.lon])
                         .setContent(`
                             <div class="popup">
@@ -2819,7 +2906,7 @@
                                 <p><strong>Nivel:</strong> ${zona.nivel}</p>
                                 <p><strong>Punto con mayor concentración:</strong> ${zona.total_edificios} edificaciones</p>
                         </div>
-                    `);
+                    `, opcionesPopupMapa());
 
                     marcador.addTo(capaZonasCriticas);
 
@@ -3027,6 +3114,22 @@
         document.addEventListener("keydown", function(evento){
             if (evento.key === "Escape" && modoPresentacionActivo) {
                 toggleModoPresentacion(false);
+            }
+        });
+
+        document.addEventListener("click", function(evento){
+            if (!esVistaMovil() || !controlCapas) {
+                return;
+            }
+
+            const contenedor = controlCapas.getContainer();
+
+            if (
+                contenedor &&
+                contenedor.classList.contains("leaflet-control-layers-expanded") &&
+                !contenedor.contains(evento.target)
+            ) {
+                cerrarDropdownCapasMovil(0);
             }
         });
 

@@ -2885,6 +2885,24 @@ footer p {
         line-height: 1.2 !important;
     }
 
+    .leaflet-layers-close {
+        display: none;
+    }
+
+    .leaflet-control-layers-expanded .leaflet-layers-close {
+        display: block;
+        width: 100%;
+        min-height: 30px;
+        margin: 0 0 7px 0;
+        padding: 6px 8px;
+        border: 0;
+        border-radius: 8px;
+        color: #ffffff;
+        background: #475569;
+        font-size: 11px;
+        font-weight: 800;
+    }
+
     .onboarding-pasos {
         grid-template-columns: 1fr;
     }
@@ -2940,38 +2958,28 @@ footer p {
     }
 
     .panel-punto.visible {
-        position: fixed;
-        left: 12px;
-        right: 12px;
-        bottom: max(12px, env(safe-area-inset-bottom));
-        z-index: 1050;
-        max-height: min(42dvh, 310px);
+        position: static;
+        max-height: min(42dvh, 300px);
         overflow: auto;
         overscroll-behavior: contain;
+        margin-top: 10px;
         padding: 12px;
         border-top-width: 4px;
         border-radius: 12px;
-        box-shadow: 0 24px 70px rgba(6, 32, 42, 0.28);
+        box-shadow: 0 14px 32px rgba(6, 32, 42, 0.16);
     }
 
     .panel-fauna.visible {
-        position: fixed;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        z-index: 1060;
+        position: static;
         display: flex;
         flex-direction: column;
-        max-height: min(52dvh, 430px);
+        max-height: none;
         overflow: hidden;
-        margin: 0;
-        padding: 12px 12px max(12px, env(safe-area-inset-bottom));
-        border-right: 0;
-        border-bottom: 0;
-        border-left: 0;
+        margin-top: 10px;
+        padding: 12px;
         border-top-width: 4px;
-        border-radius: 16px 16px 0 0;
-        box-shadow: 0 24px 70px rgba(6, 32, 42, 0.28);
+        border-radius: 12px;
+        box-shadow: 0 14px 32px rgba(6, 32, 42, 0.16);
     }
 
     .panel-fauna-header {
@@ -2986,6 +2994,7 @@ footer p {
 
     .panel-fauna-body {
         min-height: 0;
+        max-height: min(54dvh, 420px);
         overflow-y: auto;
         overscroll-behavior: contain;
         padding-right: 2px;
@@ -3064,7 +3073,7 @@ footer p {
     }
 
     .leaflet-popup {
-        max-width: calc(100vw - 40px) !important;
+        max-width: calc(100vw - 64px) !important;
     }
 
     .leaflet-popup-content-wrapper {
@@ -3073,9 +3082,9 @@ footer p {
 
     .leaflet-popup-content {
         width: auto !important;
-        max-width: min(240px, calc(100vw - 70px));
-        max-height: 34dvh;
-        margin: 10px 12px !important;
+        max-width: min(190px, calc(100vw - 92px));
+        max-height: 26dvh;
+        margin: 8px 10px !important;
         overflow: auto;
     }
 
@@ -3091,8 +3100,8 @@ footer p {
     }
 
     .popup img {
-        width: 180px;
-        height: 96px;
+        width: 150px;
+        height: 78px;
         margin-bottom: 8px;
     }
 
